@@ -232,11 +232,19 @@ wss.on("connection", (twilioWs, req) => {
   });
 });
 
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "*",
+  })
+);
+
 const PORT = process.env.PORT || 5050;
-server.listen(PORT, () => {
-  console.log(` WebSocket server in ascolto su porta ${PORT}`);
-  console.log(` WebSocket endpoint: ws://localhost:${PORT}/voice-stream`);
-  console.log(` Health check: http://localhost:${PORT}/health`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`🟢 WebSocket server in ascolto su porta ${PORT}`);
+  console.log(
+    `📡 WebSocket endpoint: wss://server-realtime.onrender.com/voice-stream`
+  );
+  console.log(`🔍 Health check: https://server-realtime.onrender.com/health`);
 });
 
 // Gestione errori globali
