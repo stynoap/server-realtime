@@ -54,10 +54,19 @@ wss.on("connection", (twilioWs, req) => {
   let streamSid = null;
   let callParameters = {};
 
-  const connectToOpenAI = () => {
+  const connectToOpenAI = (callParameters) => {
+    console.log(callParameters);
+    const { hotelNumber, callerNumber, callSid, instructions, hotelKbIds } =
+      callParameters;
+    console.log(hotelNumber, callerNumber, callSid, instructions, hotelKbIds);
+    let kbFileIds = [];
+    try {
+      kbFileIds = hotelKbIds ? JSON.parse(hotelKbIds) : [];
+    } catch (e) {
+      kbFileIds = hotelKbIds || [];
+    }
     const OPENAI_WS_URL =
       "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01";
-    console.log(process.env.OPENAI_API_KEY);
 
     openaiWs = new WebSocket(OPENAI_WS_URL, {
       headers: {
@@ -67,29 +76,12 @@ wss.on("connection", (twilioWs, req) => {
     });
 
     openaiWs.on("open", () => {
-      // Configura la sessione per l'hotel
+      console.log(" Connesso a OpenAI Realtime WebSocket");
       const sessionConfig = {
         type: "session.update",
         session: {
           modalities: ["text", "audio"],
-          instructions: `Sei l'assistente virtuale di un hotel di lusso in Italia. 
-                        
-                        COMPORTAMENTO:
-                        - Rispondi SEMPRE in italiano
-                        - Sii cordiale, professionale ed elegante
-                        - Puoi gestire: prenotazioni, informazioni sui servizi, check-in/out, richieste speciali
-                        - Permetti interruzioni naturali nella conversazione
-                        - Se non sai qualcosa, proponi di trasferire alla reception
-                        
-                        STILE:
-                        - Usa un tono accogliente e professionale
-                        - Risposte concise ma complete
-                        - "Certamente", "Naturalmente", "Sarò felice di aiutarla"
-                        
-                        Il numero chiamato: ${
-                          callParameters.hotelNumber || "hotel"
-                        }
-                        Chiamante: ${callParameters.callerNumber || "ospite"}`,
+          instructions: instructions,
 
           voice: "alloy", // Voce naturale
           input_audio_format: "g711_ulaw", // Formato Twilio
@@ -100,13 +92,23 @@ wss.on("connection", (twilioWs, req) => {
           },
 
           turn_detection: {
-            type: "server_vad", // Voice Activity Detection automatico
+            type: "server_vad",
             threshold: 0.5, // Sensibilità detection
             prefix_padding_ms: 300, // Padding inizio conversazione
             silence_duration_ms: 700, // Interruzioni dopo 700ms silenzio
           },
 
-          tools: [], // Per ora niente tools, solo conversazione
+          tools:
+            kbFileIds && kbFileIds.length > 0
+              ? [
+                  {
+                    type: "file_search",
+                    file_search: {
+                      file_ids: kbFileIds, // ← I file della knowledge base!
+                    },
+                  },
+                ]
+              : [],
           temperature: 0.8, // Più naturale e meno robotico
         },
       };
@@ -189,7 +191,7 @@ wss.on("connection", (twilioWs, req) => {
           console.log("📋 Parametri chiamata:", callParameters);
 
           // Connetti OpenAI quando inizia lo stream
-          connectToOpenAI();
+          connectToOpenAI(callParameters);
           break;
 
         case "media":
