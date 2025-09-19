@@ -98,13 +98,25 @@ wss.on("connection", (twilioWs, req) => {
             silence_duration_ms: 700, // Interruzioni dopo 700ms silenzio
           },
 
+          // Function tool per cercare nella knowledge base
           tools:
             kbFileIds && kbFileIds.length > 0
               ? [
                   {
-                    type: "file_search",
-                    file_search: {
-                      file_ids: kbFileIds, // ← I file della knowledge base!
+                    type: "function",
+                    name: "search_knowledge_base",
+                    description:
+                      "Cerca informazioni nella knowledge base aziendale",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        query: {
+                          type: "string",
+                          description:
+                            "La query di ricerca per trovare informazioni rilevanti",
+                        },
+                      },
+                      required: ["query"],
                     },
                   },
                 ]
@@ -148,7 +160,12 @@ wss.on("connection", (twilioWs, req) => {
 
         // Risposta text dell'AI (per debug)
         if (response.type === "response.text.delta") {
-          console.log(" AI risponde:", response.delta);
+          console.log("🤖 AI risponde:", response.delta);
+        }
+
+        // Gestione function call per knowledge base
+        if (response.type === "response.function_call_arguments.done") {
+          handleFunctionCall(response, openaiWs);
         }
 
         // Conferma sessione configurata
@@ -249,6 +266,153 @@ server.listen(PORT, "0.0.0.0", () => {
   );
   console.log(`🔍 Health check: https://server-realtime.onrender.com/health`);
 });
+
+// Funzione per gestire le chiamate alla knowledge base
+async function handleFunctionCall(response, openaiWs) {
+  if (response.name === "search_knowledge_base") {
+    try {
+      const args = JSON.parse(response.arguments);
+      console.log(`🔍 Ricerca knowledge base: "${args.query}"`);
+
+      // Qui puoi implementare la ricerca nei tuoi file kbFileIds
+      // Opzione 1: Usa l'API Assistants per fare una ricerca
+      // Opzione 2: Usa embedding per cercare nel contenuto pre-caricato
+
+      // Per ora, esempio base:
+      const searchResult = await searchInKnowledgeBase(args.query);
+
+      // Invia il risultato back a OpenAI
+      openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: response.call_id,
+            output: searchResult,
+          },
+        })
+      );
+    } catch (error) {
+      console.error("❌ Errore nella ricerca knowledge base:", error);
+      openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: response.call_id,
+            output: "Errore nella ricerca della knowledge base",
+          },
+        })
+      );
+    }
+  }
+}
+
+// Funzione di ricerca nella knowledge base usando API Assistants
+async function searchInKnowledgeBase(query) {
+  try {
+    // Crea un thread temporaneo per la ricerca
+    const threadResponse = await fetch("https://api.openai.com/v1/threads", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2",
+      },
+      body: JSON.stringify({}),
+    });
+
+    const thread = await threadResponse.json();
+
+    // Aggiungi il messaggio di ricerca
+    await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2",
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: query,
+        attachments: kbFileIds.map((fileId) => ({
+          file_id: fileId,
+          tools: [{ type: "file_search" }],
+        })),
+      }),
+    });
+
+    // Crea un assistant temporaneo se non ne hai già uno
+    const assistantResponse = await fetch(
+      "https://api.openai.com/v1/assistants",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          tools: [{ type: "file_search" }],
+          instructions:
+            "Cerca e riassumi informazioni rilevanti dai file allegati.",
+        }),
+      }
+    );
+
+    const assistant = await assistantResponse.json();
+
+    // Esegui la ricerca
+    const runResponse = await fetch(
+      `https://api.openai.com/v1/threads/${thread.id}/runs`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
+        },
+        body: JSON.stringify({
+          assistant_id: assistant.id,
+        }),
+      }
+    );
+
+    const run = await runResponse.json();
+
+    // Aspetta il completamento (implementazione semplificata)
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    // Recupera la risposta
+    const messagesResponse = await fetch(
+      `https://api.openai.com/v1/threads/${thread.id}/messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "OpenAI-Beta": "assistants=v2",
+        },
+      }
+    );
+
+    const messages = await messagesResponse.json();
+    const lastMessage = messages.data[0];
+
+    // Cleanup
+    await fetch(`https://api.openai.com/v1/assistants/${assistant.id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "OpenAI-Beta": "assistants=v2",
+      },
+    });
+
+    return lastMessage.content[0].text.value;
+  } catch (error) {
+    console.error("Errore ricerca knowledge base:", error);
+    return `Errore nella ricerca: ${error.message}`;
+  }
+}
 
 // Gestione errori globali
 process.on("uncaughtException", (error) => {
