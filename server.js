@@ -57,6 +57,7 @@ wss.on("connection", (twilioWs, req) => {
   const connectToOpenAI = () => {
     const OPENAI_WS_URL =
       "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01";
+    console.log(process.env.OPENAI_API_KEY);
 
     openaiWs = new WebSocket(OPENAI_WS_URL, {
       headers: {
