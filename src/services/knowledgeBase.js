@@ -1,13 +1,57 @@
 const { OPENAI_HEADERS, AI_CONFIG } = require("../config/constants");
+const crypto = require("crypto");
 
-/* Servizio utile per la gestione della knowledge base */
+/* Servizio ottimizzato per la gestione della knowledge base */
 class KnowledgeBaseService {
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY;
+
+    // Cache per risposte veloci
+    this.queryCache = new Map();
+    this.cacheMaxAge = 3 * 60 * 1000; // 3 minuti
+    this.maxCacheSize = 50; // Max 50 risposte cached
   }
 
   /**
-   * Cerca informazioni usando un assistente esistente
+   * Genera una chiave cache per la query
+   */
+  _generateCacheKey(query, assistantId, threadId) {
+    const content = `${query}-${assistantId}-${threadId}`;
+    return crypto.createHash("md5").update(content).digest("hex");
+  }
+
+  /**
+   * Controlla se abbiamo una risposta cached valida
+   */
+  _getCachedResponse(cacheKey) {
+    const cached = this.queryCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.cacheMaxAge) {
+      console.log("⚡ Risposta trovata in cache!");
+      return cached.response;
+    }
+    return null;
+  }
+
+  /**
+   * Salva una risposta in cache
+   */
+  _setCachedResponse(cacheKey, response) {
+    if (this.queryCache.size >= this.maxCacheSize) {
+      const oldestKey = this.queryCache.keys().next().value;
+      this.queryCache.delete(oldestKey);
+    }
+
+    this.queryCache.set(cacheKey, {
+      response,
+      timestamp: Date.now(),
+    });
+    console.log(
+      `💾 Risposta salvata in cache (${this.queryCache.size}/${this.maxCacheSize})`
+    );
+  }
+
+  /**
+   * 🚀 Cerca informazioni usando un assistente esistente (OTTIMIZZATO)
    * @param {string} query - La query di ricerca
    * @param {string} assistantId - ID dell'assistente OpenAI
    * @param {string} threadId - ID del thread OpenAI
@@ -19,15 +63,24 @@ class KnowledgeBaseService {
     threadId,
     progressCallback = null
   ) {
-    try {
-      console.log(`🔍 Ricerca con assistente esistente: ${assistantId}`);
-      const startTime = Date.now();
-      let progressUpdated = false;
+    const startTime = Date.now();
 
-      // Invia feedback immediato
+    try {
+      // 🚀 STEP 1: Controlla cache
+      const cacheKey = this._generateCacheKey(query, assistantId, threadId);
+      const cachedResponse = this._getCachedResponse(cacheKey);
+
+      if (cachedResponse) {
+        if (progressCallback) {
+          progressCallback("Risposta trovata in cache!");
+        }
+        return cachedResponse;
+      }
+
+      console.log(`🔍 Ricerca ottimizzata con assistente: ${assistantId}`);
+
       if (progressCallback) {
         progressCallback("Sto cercando le informazioni richieste...");
-        progressUpdated = true;
       }
 
       // 1. Aggiungi il messaggio al thread esistente
@@ -58,9 +111,12 @@ class KnowledgeBaseService {
 
       let run = await runResponse.json();
 
-      // 3. Polling: aspetta che il Run sia completato
+      // 3. 🚀 Polling ottimizzato: aspetta che il Run sia completato
+      let checkInterval = 300; // Inizia molto aggressivo: 300ms
+
       while (run.status === "queued" || run.status === "in_progress") {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+
         const statusResponse = await fetch(
           `https://api.openai.com/v1/threads/${threadId}/runs/${run.id}`,
           {
@@ -72,12 +128,19 @@ class KnowledgeBaseService {
         );
         run = await statusResponse.json();
 
-        // Invia aggiornamenti di stato se la ricerca è lunga
+        // Aumenta gradualmente l'intervallo per bilanciare velocità vs API calls
+        checkInterval = Math.min(checkInterval + 100, 1500); // Max 1.5 secondi
+
+        // Feedback di progresso più rapido
         const elapsedTime = Date.now() - startTime;
-        if (elapsedTime > 3000 && elapsedTime < 3500 && progressCallback) {
-          progressCallback(
-            "La ricerca richiede un po' più di tempo, sto analizzando tutti i documenti disponibili..."
-          );
+        if (elapsedTime > 2000 && elapsedTime < 2200 && progressCallback) {
+          progressCallback("Sto analizzando i documenti...");
+        } else if (
+          elapsedTime > 4000 &&
+          elapsedTime < 4200 &&
+          progressCallback
+        ) {
+          progressCallback("Ricerca approfondita in corso...");
         }
       }
 
@@ -94,8 +157,19 @@ class KnowledgeBaseService {
 
       const messages = await messagesResponse.json();
       const lastMessage = messages.data[0];
+      const response = lastMessage.content[0].text.value;
 
-      return lastMessage.content[0].text.value;
+      // 🚀 Salva in cache per query future
+      this._setCachedResponse(cacheKey, response);
+
+      const totalTime = Date.now() - startTime;
+      console.log(
+        `⚡ Ricerca completata in ${totalTime}ms (${
+          totalTime < 2000 ? "VELOCE" : totalTime < 4000 ? "MEDIA" : "LENTA"
+        })`
+      );
+
+      return response;
     } catch (error) {
       console.error("❌ Errore ricerca con assistente esistente:", error);
       throw new Error(`Errore nella ricerca: ${error.message}`);
@@ -103,152 +177,27 @@ class KnowledgeBaseService {
   }
 
   /**
-   * Cerca informazioni creando un assistente temporaneo
-   * @param {string} query - La query di ricerca
-   * @param {Array} kbFileIds - Array di ID dei file nella knowledge base
-   * @param {Function} progressCallback - Callback per aggiornamenti di stato (opzionale)
+   * 📊 Statistiche cache per debug
    */
-  async searchInKnowledgeBase(
-    query,
-    kbFileIds,
-    assistantId,
-    progressCallback = null
-  ) {
-    try {
-      console.log(
-        `🔍 Ricerca con assistente temporaneo per ${kbFileIds.length} file`
-      );
-      const startTime = Date.now();
-      let progressUpdated = false;
+  getCacheStats() {
+    const stats = {
+      size: this.queryCache.size,
+      maxSize: this.maxCacheSize,
+      usage: Math.round((this.queryCache.size / this.maxCacheSize) * 100),
+      cacheAge: `${this.cacheMaxAge / 1000}s`,
+    };
 
-      // Invia feedback immediato
-      if (progressCallback) {
-        progressCallback("Sto cercando le informazioni richieste...");
-        progressUpdated = true;
-      }
+    console.log(`📊 Cache stats:`, stats);
+    return stats;
+  }
 
-      // 1. Crea un thread temporaneo per la ricerca
-      const threadResponse = await fetch("https://api.openai.com/v1/threads", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          ...OPENAI_HEADERS,
-        },
-        body: JSON.stringify({}),
-      });
-
-      const thread = await threadResponse.json();
-
-      // 2. Aggiungi il messaggio di ricerca con i file allegati
-      await fetch(`https://api.openai.com/v1/threads/${thread.id}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          ...OPENAI_HEADERS,
-        },
-        body: JSON.stringify({
-          role: "user",
-          content: query,
-          attachments: kbFileIds.map((fileId) => ({
-            file_id: fileId,
-            tools: [{ type: "file_search" }],
-          })),
-        }),
-      });
-
-      // 3. Crea un assistant temporaneo
-      const assistantResponse = await fetch(
-        "https://api.openai.com/v1/assistants",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            ...OPENAI_HEADERS,
-          },
-          body: JSON.stringify({
-            assistant_id: assistantId,
-            model: AI_CONFIG.model,
-            tools: [{ type: "file_search" }],
-            instructions:
-              "Cerca e riassumi informazioni rilevanti dai file allegati.",
-          }),
-        }
-      );
-
-      const assistant = await assistantResponse.json();
-
-      // 4. Esegui la ricerca
-      const runResponse = await fetch(
-        `https://api.openai.com/v1/threads/${thread.id}/runs`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            ...OPENAI_HEADERS,
-          },
-          body: JSON.stringify({
-            assistant_id: assistant.id,
-          }),
-        }
-      );
-
-      const run = await runResponse.json();
-
-      // 5. Polling per aspettare il completamento
-      let runStatus = run;
-      while (
-        runStatus.status === "queued" ||
-        runStatus.status === "in_progress"
-      ) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const statusResponse = await fetch(
-          `https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`,
-          {
-            headers: {
-              Authorization: `Bearer ${this.apiKey}`,
-              ...OPENAI_HEADERS,
-            },
-          }
-        );
-        runStatus = await statusResponse.json();
-
-        // Invia aggiornamenti di stato se la ricerca è lunga
-        const elapsedTime = Date.now() - startTime;
-        if (elapsedTime > 3000 && elapsedTime < 3500 && progressCallback) {
-          progressCallback(
-            "La ricerca richiede un po' più di tempo, sto analizzando tutti i documenti disponibili..."
-          );
-        }
-      }
-
-      // 6. Recupera la risposta
-      const messagesResponse = await fetch(
-        `https://api.openai.com/v1/threads/${thread.id}/messages`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            ...OPENAI_HEADERS,
-          },
-        }
-      );
-
-      const messages = await messagesResponse.json();
-      const lastMessage = messages.data[0];
-
-      // 7. Cleanup - elimina l'assistente temporaneo
-      await fetch(`https://api.openai.com/v1/assistants/${assistant.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          ...OPENAI_HEADERS,
-        },
-      });
-
-      return lastMessage.content[0].text.value;
-    } catch (error) {
-      console.error("❌ Errore ricerca knowledge base:", error);
-      throw new Error(`Errore nella ricerca: ${error.message}`);
-    }
+  /**
+   * 🧹 Pulisci cache manualmente
+   */
+  clearCache() {
+    const size = this.queryCache.size;
+    this.queryCache.clear();
+    console.log(`🧹 Cache pulita - rimosse ${size} risposte`);
   }
 }
 

@@ -31,12 +31,14 @@ class FunctionCallHandler {
 
         let searchResult;
 
-        // Crea un assistente temporaneo
-        searchResult = await this.knowledgeBaseService.searchInKnowledgeBase(
-          args.query,
-          kbFileIds,
-          progressCallback
-        );
+        // Usa assistente esistente (molto più veloce!)
+        searchResult =
+          await this.knowledgeBaseService.searchWithExistingAssistant(
+            args.query,
+            assistantId,
+            threadId,
+            progressCallback
+          );
 
         // Pulisci il risultato rimuovendo i metadati del documento
         const cleanedResult = searchResult.replace(/【[^】]+】/g, "");

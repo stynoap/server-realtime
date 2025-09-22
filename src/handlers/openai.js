@@ -311,9 +311,7 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
         }
         // Caso 2: AI ha risposto solo con audio senza trascrizione
         else if (this.currentUserMessage.trim()) {
-          console.log(
-            "⚠️ AI ha risposto con solo audio, salvo messaggio utente"
-          );
+          console.log(" AI ha risposto con solo audio, salvo messaggio utente");
           this.messages.push({
             text: this.currentUserMessage.trim(),
             timestamp: Date.now(),
@@ -467,7 +465,7 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
             "⚠️ SALVATAGGIO FINALE: Anche risposta AI in sospeso salvata"
           );
         }
-        console.log("✅ SALVATAGGIO FINALE completato");
+        console.log(" SALVATAGGIO FINALE completato");
       }
 
       // Ordina i messaggi definitivamente per timestamp e sequenza
