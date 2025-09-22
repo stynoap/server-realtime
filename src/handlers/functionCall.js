@@ -54,15 +54,10 @@ class FunctionCallHandler {
           );
         }
 
-        // Notifica l'utente che la ricerca è completata e mostra un'anteprima dei risultati
-        const previewResult =
-          searchResult.length > 100
-            ? searchResult.substring(0, 100) + "..."
-            : searchResult;
-
+        // Invia all'utente la risposta completa trovata dalla ricerca
         this._sendTextMessageToOpenAI(
           openaiWs,
-          `Ho trovato le informazioni richieste. Ecco un'anteprima: "${previewResult}"`
+          `Ecco le informazioni che ho trovato: ${searchResult}`
         );
 
         // Invia il risultato back a OpenAI
