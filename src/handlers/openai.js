@@ -167,15 +167,6 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
         this._forwardAudioToTwilio(response.delta);
       }
 
-      // Audio da text-to-speech
-      if (
-        response.type === "text_to_speech.response" &&
-        response.audio &&
-        this.streamSid
-      ) {
-        this._forwardAudioToTwilio(response.audio);
-      }
-
       // Transcription dell'utente
       if (
         response.type ===
