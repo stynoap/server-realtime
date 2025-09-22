@@ -30,15 +30,14 @@ class TwilioHandler {
     });
   }
 
-  /**
-   * Gestisce i messaggi da Twilio
-   */
+  /** Gestisce i messaggi in arrivo da Twilio */
   _handleMessage(message) {
     try {
       const data = JSON.parse(message.toString());
 
       switch (data.event) {
         case "connected":
+          /* ci siamo appena connessi a twilio */
           console.log("📞 Chiamata Twilio connessa");
           break;
 
@@ -72,7 +71,7 @@ class TwilioHandler {
     console.log(`🎥 Stream iniziato: ${streamSid}`);
     console.log("📋 Parametri chiamata:", callParameters);
 
-    // Crea e connetti OpenAI handler
+    // Creo l'oggetto di tipo openaihandler e connetti OpenAI handler
     this.openaiHandler = new OpenAIHandler(this.twilioWs);
     this.openaiHandler.setStreamSid(streamSid);
 
@@ -99,13 +98,8 @@ class TwilioHandler {
     }, 500);
   }
 
-  /**
-   * Crea il messaggio di benvenuto personalizzato
-   */
+  /** Crea il messaggio di benvenuto personalizzato */
   _createWelcomeMessage(callParameters) {
-    const { hotelNumber, callerNumber } = callParameters;
-
-    // Personalizzazione in base all'orario
     const hour = new Date().getHours();
     let welcomeMessage;
 

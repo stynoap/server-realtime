@@ -1,8 +1,6 @@
 const { OPENAI_HEADERS, AI_CONFIG } = require("../config/constants");
 
-/**
- * Servizio per gestire le ricerche nella knowledge base di OpenAI
- */
+/* Servizio utile per la gestione della knowledge base */
 class KnowledgeBaseService {
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY;
@@ -105,7 +103,12 @@ class KnowledgeBaseService {
    * @param {Array} kbFileIds - Array di ID dei file nella knowledge base
    * @param {Function} progressCallback - Callback per aggiornamenti di stato (opzionale)
    */
-  async searchInKnowledgeBase(query, kbFileIds, progressCallback = null) {
+  async searchInKnowledgeBase(
+    query,
+    kbFileIds,
+    assistantId,
+    progressCallback = null
+  ) {
     try {
       console.log(
         `🔍 Ricerca con assistente temporaneo per ${kbFileIds.length} file`
@@ -152,6 +155,7 @@ class KnowledgeBaseService {
             ...OPENAI_HEADERS,
           },
           body: JSON.stringify({
+            assistant_id: assistantId,
             model: AI_CONFIG.model,
             tools: [{ type: "file_search" }],
             instructions:

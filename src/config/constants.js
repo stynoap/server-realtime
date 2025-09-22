@@ -28,4 +28,6 @@ module.exports = {
     "Content-Type": "application/json",
     "OpenAI-Beta": "assistants=v2",
   },
+
+  AWS_SERVER_URL: "https://8ff02731e3c0.ngrok-free.app/call",
 };

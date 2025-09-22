@@ -1,6 +1,12 @@
 const WebSocket = require("ws");
-const { OPENAI_WS_URL, VAD_CONFIG, AI_CONFIG } = require("../config/constants");
+const {
+  OPENAI_WS_URL,
+  VAD_CONFIG,
+  AI_CONFIG,
+  AWS_SERVER_URL,
+} = require("../config/constants");
 const FunctionCallHandler = require("./functionCall");
+const { text } = require("express");
 
 /**
  * Handler per gestire la connessione WebSocket con OpenAI Realtime
@@ -14,6 +20,11 @@ class OpenAIHandler {
     this.kbFileIds = [];
     this.mokaAssistant = null;
     this.threadId = null;
+    this.hotelCallNumber = null;
+    this.customerNumber = null;
+    this.messages = [];
+    this.currentAssistantMessage = "";
+    this.currentAssistantResponse = "";
   }
 
   /**
@@ -28,6 +39,9 @@ class OpenAIHandler {
       hotelKbIds,
       mokaAssistant: assistantId,
     } = callParameters;
+
+    this.hotelCallNumber = hotelNumber;
+    this.customerNumber = callerNumber;
 
     // Assegna le variabili
     this.mokaAssistant = assistantId;
@@ -63,9 +77,7 @@ class OpenAIHandler {
     this._setupEventHandlers(instructions);
   }
 
-  /**
-   * Configura gli event handler per OpenAI WebSocket
-   */
+  /** Imposta gli event handlers per la connessione WebSocket */
   _setupEventHandlers(instructions) {
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket");
@@ -85,9 +97,7 @@ class OpenAIHandler {
     });
   }
 
-  /**
-   * Invia la configurazione della sessione a OpenAI
-   */
+  /** Invia la configurazione della sessione a OpenAI */
   _sendSessionConfig(instructions) {
     const enhancedInstructions = `${instructions}
 
@@ -124,9 +134,7 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
     this.openaiWs.send(JSON.stringify(sessionConfig));
   }
 
-  /**
-   * Crea la configurazione dei tools
-   */
+  /** Crea la configurazione dei tools */
   _createTools() {
     return this.kbFileIds && this.kbFileIds.length > 0
       ? [
@@ -151,11 +159,10 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
       : [];
   }
 
-  /**
-   * Gestisce i messaggi da OpenAI
-   */
+  /** Gestisce i messaggi da OpenAI */
   _handleMessage(message) {
     try {
+      /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
       const response = JSON.parse(message.toString());
 
       // Audio response dall'AI
@@ -164,6 +171,7 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
         response.delta &&
         this.streamSid
       ) {
+        // Inoltra audio a Twilio (ma NON salviamo l'audio nei messaggi)
         this._forwardAudioToTwilio(response.delta);
       }
 
@@ -173,14 +181,53 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
         "conversation.item.input_audio_transcription.completed"
       ) {
         console.log("👤 Utente ha detto:", response.transcript);
+        this.messages.push({
+          text: response.transcript,
+          timestamp: Date.now(),
+          role: "user",
+        });
       }
 
-      // Risposta text dell'AI
+      // Risposta text dell'AI - accumula il testo
       if (response.type === "response.text.delta") {
         console.log("🤖 AI risponde:", response.delta);
+        this.currentAssistantResponse += response.delta;
       }
 
-      // Function call
+      // Risposta text dell'AI completata - salva il messaggio
+      if (response.type === "response.text.done") {
+        if (this.currentAssistantResponse.trim()) {
+          this.messages.push({
+            text: this.currentAssistantResponse.trim(),
+            timestamp: Date.now(),
+            role: "assistant",
+          });
+          console.log(
+            "💾 Messaggio assistant salvato:",
+            this.currentAssistantResponse.trim()
+          );
+          this.currentAssistantResponse = "";
+        }
+      }
+
+      // Risposta completata - salva messaggio se non è stato già salvato via testo
+      if (response.type === "response.done") {
+        // Se abbiamo accumulato del testo ma non è ancora stato salvato
+        if (this.currentAssistantResponse.trim()) {
+          this.messages.push({
+            text: this.currentAssistantResponse.trim(),
+            timestamp: Date.now(),
+            role: "assistant",
+          });
+          console.log(
+            "💾 Messaggio assistant salvato (fallback):",
+            this.currentAssistantResponse.trim()
+          );
+          this.currentAssistantResponse = "";
+        }
+      }
+
+      // Function call da OpenAI
       if (response.type === "response.function_call_arguments.done") {
         console.log("🔧 Function call rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
@@ -237,9 +284,7 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
     );
   }
 
-  /**
-   * Invia audio dell'utente a OpenAI
-   */
+  /** Invia audio dell'utente a OpenAI, viene usata da twilio per inviare l'audio dell'utente a openai */
   sendAudioToOpenAI(audioPayload) {
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
       this.openaiWs.send(
@@ -251,9 +296,7 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
     }
   }
 
-  /**
-   * Invia un messaggio di testo a OpenAI (per il benvenuto)
-   */
+  /** Invia testo a OpenAI, per il messaggio di benvenuto, viene mandato da twilio subito dopo la connect */
   sendTextToOpenAI(text) {
     if (!this.openaiWs || this.openaiWs.readyState !== WebSocket.OPEN) {
       console.error("❌ OpenAI WebSocket non connesso");
@@ -287,19 +330,45 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
 
     this.openaiWs.send(JSON.stringify(responseCommand));
   }
-
-  /**
-   * Imposta stream SID
-   */
+  /* imposto lo stream sid */
   setStreamSid(streamSid) {
     this.streamSid = streamSid;
   }
 
-  /**
-   * Chiude la connessione
-   */
+  /* questo è il momento in cui chiudo la connessione */
   close() {
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
+      console.log("📤 Invio messaggi al server AWS...");
+      console.log("📋 Messaggi da inviare:", this.messages);
+
+      /* Invio messaggi al server AWS con gestione errori */
+      fetch(`${AWS_SERVER_URL}/call`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerNumber: this.customerNumber,
+          hotelNumber: this.hotelCallNumber,
+          streamSid: this.streamSid,
+          messages: this.messages,
+        }),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          console.log("✅ Messaggi inviati al server AWS con successo");
+          return response.json();
+        })
+        .then((data) => {
+          console.log("📊 Risposta server AWS:", data);
+        })
+        .catch((error) => {
+          console.error("❌ Errore nell'invio messaggi al server AWS:", error);
+          // Non bloccare la chiusura anche in caso di errore
+        });
+
       this.openaiWs.close();
     }
   }

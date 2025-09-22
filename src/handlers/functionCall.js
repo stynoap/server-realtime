@@ -18,41 +18,30 @@ class FunctionCallHandler {
     assistantId,
     threadId
   ) {
+    /* Condizione di ricerca nella knowledge base */
     if (response.name === "search_knowledge_base") {
       try {
         const args = JSON.parse(response.arguments);
         console.log(`🔍 Ricerca knowledge base: "${args.query}"`);
 
-        // Invia un feedback immediato all'utente che la ricerca è iniziata
         this._sendTextMessageToOpenAI(
           openaiWs,
           "Sto cercando le informazioni richieste, un attimo di pazienza..."
         );
 
-        // Definisci il callback per gli aggiornamenti di stato
+        // Callback per aggiornamenti di stato
         const progressCallback = (message) => {
           this._sendTextMessageToOpenAI(openaiWs, message);
         };
 
         let searchResult;
 
-        if (assistantId && assistantId !== "undefined" && threadId) {
-          // Usa l'assistente esistente se disponibile
-          searchResult =
-            await this.knowledgeBaseService.searchWithExistingAssistant(
-              args.query,
-              assistantId,
-              threadId,
-              progressCallback
-            );
-        } else {
-          // Crea un assistente temporaneo
-          searchResult = await this.knowledgeBaseService.searchInKnowledgeBase(
-            args.query,
-            kbFileIds,
-            progressCallback
-          );
-        }
+        // Crea un assistente temporaneo
+        searchResult = await this.knowledgeBaseService.searchInKnowledgeBase(
+          args.query,
+          kbFileIds,
+          progressCallback
+        );
 
         // Pulisci il risultato rimuovendo i metadati del documento
         const cleanedResult = searchResult.replace(/【[^】]+】/g, "");
@@ -70,7 +59,7 @@ class FunctionCallHandler {
           );
         }, 100); // Piccolo delay per assicurarsi che function_call_output sia processato prima
       } catch (error) {
-        console.error("❌ Errore nella ricerca knowledge base:", error);
+        console.error(" Errore nella ricerca knowledge base:", error);
         this._sendFunctionResult(
           openaiWs,
           response.call_id,
@@ -80,9 +69,7 @@ class FunctionCallHandler {
     }
   }
 
-  /**
-   * Invia il risultato della function call a OpenAI
-   */
+  /** Invia il risultato della function call a OpenAI */
   _sendFunctionResult(openaiWs, callId, result) {
     openaiWs.send(
       JSON.stringify({
@@ -96,12 +83,9 @@ class FunctionCallHandler {
     );
   }
 
-  /**
-   * Invia un messaggio testuale a OpenAI durante la ricerca
-   */
+  /** Invia un messaggio testuale a OpenAI durante la ricerca */
+
   _sendTextMessageToOpenAI(openaiWs, message) {
-    // Semplicemente aggiungiamo il messaggio alla conversazione
-    // OpenAI dovrebbe generare automaticamente l'audio per i messaggi dell'assistant
     openaiWs.send(
       JSON.stringify({
         type: "conversation.item.create",
