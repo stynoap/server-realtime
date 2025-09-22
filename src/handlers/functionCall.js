@@ -96,6 +96,7 @@ class FunctionCallHandler {
    * Invia un messaggio testuale a OpenAI durante la ricerca
    */
   _sendTextMessageToOpenAI(openaiWs, message) {
+    // Prima invia un messaggio di testo che verrà mostrato nella UI
     openaiWs.send(
       JSON.stringify({
         type: "conversation.item.create",
@@ -109,6 +110,14 @@ class FunctionCallHandler {
             },
           ],
         },
+      })
+    );
+
+    // Poi invia una richiesta di generazione audio per lo stesso messaggio
+    openaiWs.send(
+      JSON.stringify({
+        type: "text_to_speech.request",
+        content: message,
       })
     );
 
