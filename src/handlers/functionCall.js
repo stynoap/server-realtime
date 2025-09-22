@@ -57,14 +57,18 @@ class FunctionCallHandler {
         // Pulisci il risultato rimuovendo i metadati del documento
         const cleanedResult = searchResult.replace(/【[^】]+】/g, "");
 
-        // Invia all'utente la risposta pulita trovata dalla ricerca
-        this._sendTextMessageToOpenAI(
-          openaiWs,
-          `Ecco le informazioni che ho trovato: ${cleanedResult}`
-        );
-
-        // Invia il risultato originale back a OpenAI
+        // Invia il risultato back a OpenAI
         this._sendFunctionResult(openaiWs, response.call_id, searchResult);
+
+        // IMPORTANTE: Forza OpenAI a generare una risposta dopo aver ricevuto i risultati
+        // Questo risolve il problema della mancata risposta spontanea
+        setTimeout(() => {
+          openaiWs.send(
+            JSON.stringify({
+              type: "response.create",
+            })
+          );
+        }, 100); // Piccolo delay per assicurarsi che function_call_output sia processato prima
       } catch (error) {
         console.error("❌ Errore nella ricerca knowledge base:", error);
         this._sendFunctionResult(
@@ -96,11 +100,12 @@ class FunctionCallHandler {
    * Invia un messaggio testuale a OpenAI durante la ricerca
    */
   _sendTextMessageToOpenAI(openaiWs, message) {
-    // Invia un messaggio di testo che verrà mostrato nella UI e convertito in audio
+    // Semplicemente aggiungiamo il messaggio alla conversazione
+    // OpenAI dovrebbe generare automaticamente l'audio per i messaggi dell'assistant
     openaiWs.send(
       JSON.stringify({
-        type: "response.create",
-        response: {
+        type: "conversation.item.create",
+        item: {
           type: "message",
           role: "assistant",
           content: [
