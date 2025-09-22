@@ -29,5 +29,5 @@ module.exports = {
     "OpenAI-Beta": "assistants=v2",
   },
 
-  AWS_SERVER_URL: "https://8ff02731e3c0.ngrok-free.app/call",
+  AWS_SERVER_URL: "https://a4e47cc50c44.ngrok-free.app/call",
 };

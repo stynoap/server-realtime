@@ -4,6 +4,7 @@ const http = require("http");
 const cors = require("cors");
 const WebSocket = require("ws");
 const TwilioHandler = require("./src/handlers/twilio");
+const { AWS_SERVER_URL } = require("./src/config/constants");
 
 const app = express();
 const server = http.createServer(app);
@@ -64,6 +65,7 @@ server.listen(PORT, "0.0.0.0", () => {
     `📡 WebSocket endpoint: wss://server-realtime.onrender.com/voice-stream`
   );
   console.log(`🔍 Health check: https://server-realtime.onrender.com/health`);
+  // Funzione di test per chiamata HTTP
 });
 
 // Gestione errori globali

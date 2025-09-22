@@ -339,13 +339,21 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
   close() {
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
       console.log("📤 Invio messaggi al server AWS...");
+      console.log("🌐 URL AWS:", `${AWS_SERVER_URL}`);
       console.log("📋 Messaggi da inviare:", this.messages);
+      console.log("📞 Dati chiamata:", {
+        customerNumber: this.customerNumber,
+        hotelNumber: this.hotelCallNumber,
+        streamSid: this.streamSid,
+      });
 
       /* Invio messaggi al server AWS con gestione errori */
-      fetch(`${AWS_SERVER_URL}/call`, {
+      fetch(`${AWS_SERVER_URL}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+          "User-Agent": "TwilioRealtime/1.0",
         },
         body: JSON.stringify({
           customerNumber: this.customerNumber,
@@ -355,8 +363,20 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
         }),
       })
         .then((response) => {
+          console.log("📡 Risposta HTTP status:", response.status);
+          console.log(
+            "📡 Risposta HTTP headers:",
+            Object.fromEntries(response.headers.entries())
+          );
+
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Proviamo a leggere il corpo della risposta per più dettagli sull'errore
+            return response.text().then((text) => {
+              console.log("❌ Corpo della risposta di errore:", text);
+              throw new Error(
+                `HTTP error! status: ${response.status}, message: ${text}`
+              );
+            });
           }
           console.log("✅ Messaggi inviati al server AWS con successo");
           return response.json();
