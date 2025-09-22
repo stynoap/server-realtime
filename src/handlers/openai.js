@@ -25,6 +25,7 @@ class OpenAIHandler {
     this.messages = [];
     this.currentAssistantMessage = "";
     this.currentAssistantResponse = "";
+    this.currentUserMessage = "";
   }
 
   /**
@@ -165,38 +166,65 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
       const response = JSON.parse(message.toString());
 
+      // Log di debug per tutti gli eventi (commentare in produzione)
+      if (response.type && !response.type.includes("audio.delta")) {
+        console.log(`🔍 Evento OpenAI: ${response.type}`);
+      }
+
       // Audio response dall'AI
       if (
         response.type === "response.audio.delta" &&
         response.delta &&
         this.streamSid
       ) {
-        // Inoltra audio a Twilio (ma NON salviamo l'audio nei messaggi)
         this._forwardAudioToTwilio(response.delta);
       }
 
-      // Transcription dell'utente
+      // Trascrizione dell'audio dell'utente in arrivo
       if (
         response.type ===
         "conversation.item.input_audio_transcription.completed"
       ) {
         console.log("👤 Utente ha detto:", response.transcript);
-        this.messages.push({
-          text: response.transcript,
-          timestamp: Date.now(),
-          role: "user",
-        });
+
+        // Se c'era già un messaggio utente non salvato, salvalo prima
+        if (this.currentUserMessage.trim()) {
+          console.log(
+            "⚠️ Messaggio utente precedente non salvato, lo salvo ora"
+          );
+          this.messages.push({
+            text: this.currentUserMessage.trim(),
+            timestamp: Date.now(),
+            role: "user",
+          });
+        }
+
+        this.currentUserMessage = response.transcript;
+        console.log("📝 Messaggio utente temporaneo salvato");
       }
 
-      // Risposta text dell'AI - accumula il testo
       if (response.type === "response.text.delta") {
-        console.log("🤖 AI risponde:", response.delta);
+        console.log("🤖 AI risponde (testo):", response.delta);
         this.currentAssistantResponse += response.delta;
       }
 
-      // Risposta text dell'AI completata - salva il messaggio
+      // Risposta text dell'AI completata - salva ENTRAMBI i messaggi in ordine
       if (response.type === "response.text.done") {
         if (this.currentAssistantResponse.trim()) {
+          // Prima salva il messaggio dell'utente
+          if (this.currentUserMessage.trim()) {
+            this.messages.push({
+              text: this.currentUserMessage.trim(),
+              timestamp: Date.now(),
+              role: "user",
+            });
+            console.log(
+              "💾 Messaggio utente salvato:",
+              this.currentUserMessage.trim()
+            );
+          }
+
+          // Poi salva la risposta dell'AI
           this.messages.push({
             text: this.currentAssistantResponse.trim(),
             timestamp: Date.now(),
@@ -206,28 +234,109 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
             "💾 Messaggio assistant salvato:",
             this.currentAssistantResponse.trim()
           );
+
+          // Reset
+          this.currentAssistantResponse = "";
+          this.currentUserMessage = "";
+        }
+      }
+
+      // Trascrizione dell'audio dell'AI completata - salva ENTRAMBI i messaggi
+      if (response.type === "response.audio_transcript.done") {
+        const transcript = response.transcript;
+        if (transcript && transcript.trim()) {
+          // Prima salva il messaggio dell'utente
+          if (this.currentUserMessage.trim()) {
+            this.messages.push({
+              text: this.currentUserMessage.trim(),
+              timestamp: Date.now(),
+              role: "user",
+            });
+            console.log(
+              "💾 Messaggio utente salvato:",
+              this.currentUserMessage.trim()
+            );
+          }
+
+          // Poi salva la risposta dell'AI
+          this.messages.push({
+            text: transcript.trim(),
+            timestamp: Date.now(),
+            role: "assistant",
+          });
+          console.log(
+            "💾 Messaggio assistant salvato (audio):",
+            transcript.trim()
+          );
+
+          // Reset COMPLETO
+          this.currentUserMessage = "";
           this.currentAssistantResponse = "";
         }
       }
 
-      // Risposta completata - salva messaggio se non è stato già salvato via testo
+      // Risposta completata - fallback per salvare messaggi se necessario
       if (response.type === "response.done") {
-        // Se abbiamo accumulato del testo ma non è ancora stato salvato
+        console.log("📋 Risposta AI completata");
+
+        // Caso 1: Abbiamo testo accumulato ma non salvato
         if (this.currentAssistantResponse.trim()) {
+          // Prima salva il messaggio dell'utente
+          if (this.currentUserMessage.trim()) {
+            this.messages.push({
+              text: this.currentUserMessage.trim(),
+              timestamp: Date.now(),
+              role: "user",
+            });
+            console.log(
+              "💾 Messaggio utente salvato (fallback testo):",
+              this.currentUserMessage.trim()
+            );
+          }
+
+          // Poi salva la risposta dell'AI
           this.messages.push({
             text: this.currentAssistantResponse.trim(),
             timestamp: Date.now(),
             role: "assistant",
           });
           console.log(
-            "💾 Messaggio assistant salvato (fallback):",
+            "💾 Messaggio assistant salvato (fallback testo):",
             this.currentAssistantResponse.trim()
           );
-          this.currentAssistantResponse = "";
-        }
-      }
 
-      // Function call da OpenAI
+          // Reset
+          this.currentAssistantResponse = "";
+          this.currentUserMessage = "";
+        }
+        // Caso 2: AI ha risposto solo con audio senza trascrizione
+        else if (this.currentUserMessage.trim()) {
+          console.log(
+            "⚠️ AI ha risposto con solo audio, salvo messaggio utente"
+          );
+          this.messages.push({
+            text: this.currentUserMessage.trim(),
+            timestamp: Date.now(),
+            role: "user",
+          });
+          this.messages.push({
+            text: "[Risposta audio senza trascrizione]",
+            timestamp: Date.now(),
+            role: "assistant",
+          });
+          console.log("💾 Messaggio utente + risposta audio generica salvati");
+          this.currentUserMessage = "";
+        }
+
+        // Log dello stato attuale
+        console.log(`📊 Totale messaggi: ${this.messages.length}`);
+        console.log(
+          "📋 Conversazione:",
+          this.messages
+            .slice(-4)
+            .map((m, i) => `${i + 1}. ${m.role}: ${m.text.substring(0, 30)}...`)
+        );
+      } // Function call da OpenAI
       if (response.type === "response.function_call_arguments.done") {
         console.log("🔧 Function call rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
@@ -338,9 +447,47 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
   /* questo è il momento in cui chiudo la connessione */
   close() {
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
+      // 🚨 CONTROLLO FINALE: Salva qualsiasi messaggio rimasto in sospeso
+      if (this.currentUserMessage.trim()) {
+        console.log("⚠️ SALVATAGGIO FINALE: Messaggio utente in sospeso");
+        this.messages.push({
+          text: this.currentUserMessage.trim(),
+          timestamp: Date.now(),
+          role: "user",
+        });
+
+        // Se c'è anche una risposta AI in sospeso, salvala
+        if (this.currentAssistantResponse.trim()) {
+          this.messages.push({
+            text: this.currentAssistantResponse.trim(),
+            timestamp: Date.now(),
+            role: "assistant",
+          });
+          console.log(
+            "⚠️ SALVATAGGIO FINALE: Anche risposta AI in sospeso salvata"
+          );
+        }
+        console.log("✅ SALVATAGGIO FINALE completato");
+      }
+
+      // Ordina i messaggi definitivamente per timestamp e sequenza
+      this.messages.sort((a, b) => {
+        if (a.timestamp !== b.timestamp) return a.timestamp - b.timestamp;
+        return (a.sequence || 0) - (b.sequence || 0);
+      });
+
       console.log("📤 Invio messaggi al server AWS...");
       console.log("🌐 URL AWS:", `${AWS_SERVER_URL}`);
-      console.log("📋 Messaggi da inviare:", this.messages);
+      console.log(
+        "� Sequenza finale messaggi:",
+        this.messages.map(
+          (m, i) =>
+            `${i + 1}. [${m.sequence || "?"}] ${m.role}: ${m.text.substring(
+              0,
+              40
+            )}...`
+        )
+      );
       console.log("📞 Dati chiamata:", {
         customerNumber: this.customerNumber,
         hotelNumber: this.hotelCallNumber,
