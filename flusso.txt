@@ -1,0 +1,86 @@
+Flusso Completo del Codice per Server Realtime
+Ecco una descrizione dettagliata del flusso del codice del tuo server realtime che gestisce chiamate vocali con Twilio e OpenAI:
+
+1. Inizializzazione e Connessione
+Server avvio: Il server.js inizializza un server HTTP e WebSocket che ascolta su /voice-stream
+Connessione Twilio: Quando un utente chiama, Twilio stabilisce una connessione WebSocket con il server
+Creazione handler: Viene creato un TwilioHandler per gestire la connessione
+2. Gestione Chiamata
+Evento "connected": Twilio segnala che la connessione è stabilita
+
+Evento "start": Twilio invia parametri della chiamata:
+
+streamSid: ID dello stream audio
+customParameters: Contiene hotelNumber, callerNumber, instructions, kbFileIds, mokaAssistant
+Inizializzazione OpenAI: Viene creato un OpenAIHandler che:
+
+Configura la connessione WebSocket con OpenAI Realtime
+Registra il streamSid per tracciare la conversazione
+Si connette all'API OpenAI con i parametri ricevuti
+Messaggio di benvenuto: Appena OpenAI è pronto, il sistema:
+
+Attende che la sessione OpenAI sia configurata
+Invia un messaggio di benvenuto personalizzato in base all'orario
+3. Flusso Conversazione
+Audio utente → Twilio → Server:
+
+Twilio invia eventi "media" con l'audio dell'utente codificato in base64
+TwilioHandler inoltra l'audio a OpenAIHandler
+OpenAIHandler invia l'audio a OpenAI Realtime
+Elaborazione OpenAI:
+
+OpenAI trascrive l'audio in testo
+Elabora la risposta testuale
+Genera audio della risposta
+Eventualmente chiama function tools per cercare informazioni
+Risposta OpenAI → Server → Twilio → Utente:
+
+OpenAI invia eventi "response.audio.delta" con la risposta audio
+OpenAIHandler inoltra l'audio a TwilioHandler
+TwilioHandler invia l'audio a Twilio per la riproduzione all'utente
+4. Ricerca nella Knowledge Base
+Quando l'utente chiede informazioni che richiedono una ricerca:
+
+Chiamata Function:
+
+OpenAI invia un evento "response.function_call_arguments.done"
+OpenAIHandler rileva la chiamata e la inoltra a [FunctionCallHandler]functionCall.js )
+Inizio Ricerca:
+
+[FunctionCallHandler]functionCall.js ) invia un messaggio "Sto cercando le informazioni richieste..."
+Determina quale metodo di ricerca usare (assistente esistente o temporaneo)
+Processo di Ricerca:
+
+Se la ricerca dura più di 5 secondi, invia un aggiornamento "La ricerca richiede un po' di tempo..."
+KnowledgeBaseService esegue la ricerca usando l'API Assistants di OpenAI
+Completamento Ricerca:
+
+Invia un messaggio "Ecco le informazioni che ho trovato: [risultati]"
+Invia formalmente i risultati a OpenAI tramite "function_call_output"
+OpenAI integra queste informazioni nella risposta successiva
+5. Gestione Stato Chiamata
+Durante la chiamata:
+
+TwilioHandler gestisce il flusso audio bidirezionale
+OpenAIHandler mantiene la connessione con OpenAI
+Lo stato viene mantenuto nelle istanze degli handler
+Terminazione chiamata:
+
+Twilio invia un evento "stop"
+TwilioHandler chiude OpenAIHandler
+Le connessioni WebSocket vengono chiuse
+Le risorse vengono rilasciate
+6. Feedback e Gestione Errori
+Logging: Ogni passaggio è documentato con messaggi di log dettagliati
+Gestione errori: Ogni componente gestisce i propri errori localmente
+Feedback utente: Messaggi vocali informano l'utente dello stato della ricerca
+Componenti Principali
+server.js: Entry point, configurazione server e WebSocket
+src/handlers/twilio.js: Gestisce connessione con Twilio
+src/handlers/openai.js: Gestisce connessione con OpenAI
+[src/handlers/functionCall.js]functionCall.js ): Gestisce function calls (ricerca knowledge base)
+src/services/knowledgeBase.js: Esegue ricerche nella knowledge base via API Assistants
+src/config/constants.js: Centralizza configurazioni e costanti
+Questo flusso consente un'esperienza di chiamata naturale dove l'utente può parlare con
+ un assistente AI che ha accesso a informazioni specifiche tramite la knowledge base,
+  ricevendo risposte vocali in tempo reale con feedback appropriato durante i processi di ricerca.

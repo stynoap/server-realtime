@@ -54,13 +54,16 @@ class FunctionCallHandler {
           );
         }
 
-        // Invia all'utente la risposta completa trovata dalla ricerca
+        // Pulisci il risultato rimuovendo i metadati del documento
+        const cleanedResult = searchResult.replace(/【[^】]+】/g, "");
+
+        // Invia all'utente la risposta pulita trovata dalla ricerca
         this._sendTextMessageToOpenAI(
           openaiWs,
-          `Ecco le informazioni che ho trovato: ${searchResult}`
+          `Ecco le informazioni che ho trovato: ${cleanedResult}`
         );
 
-        // Invia il risultato back a OpenAI
+        // Invia il risultato originale back a OpenAI
         this._sendFunctionResult(openaiWs, response.call_id, searchResult);
       } catch (error) {
         console.error("❌ Errore nella ricerca knowledge base:", error);
@@ -97,9 +100,14 @@ class FunctionCallHandler {
       JSON.stringify({
         type: "conversation.item.create",
         item: {
-          type: "text",
+          type: "message",
           role: "assistant",
-          content: message,
+          content: [
+            {
+              type: "text",
+              text: message,
+            },
+          ],
         },
       })
     );
