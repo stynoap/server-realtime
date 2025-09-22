@@ -24,6 +24,12 @@ class KnowledgeBaseService {
       const startTime = Date.now();
       let progressUpdated = false;
 
+      // Invia feedback immediato
+      if (progressCallback) {
+        progressCallback("Sto cercando le informazioni richieste...");
+        progressUpdated = true;
+      }
+
       // 1. Aggiungi il messaggio al thread esistente
       await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
         method: "POST",
@@ -68,11 +74,10 @@ class KnowledgeBaseService {
 
         // Invia aggiornamenti di stato se la ricerca è lunga
         const elapsedTime = Date.now() - startTime;
-        if (elapsedTime > 5000 && !progressUpdated && progressCallback) {
+        if (elapsedTime > 3000 && elapsedTime < 3500 && progressCallback) {
           progressCallback(
-            "La ricerca richiede un po' di tempo, sto analizzando i documenti..."
+            "La ricerca richiede un po' più di tempo, sto analizzando tutti i documenti disponibili..."
           );
-          progressUpdated = true;
         }
       }
 
@@ -115,6 +120,12 @@ class KnowledgeBaseService {
       );
       const startTime = Date.now();
       let progressUpdated = false;
+
+      // Invia feedback immediato
+      if (progressCallback) {
+        progressCallback("Sto cercando le informazioni richieste...");
+        progressUpdated = true;
+      }
 
       // 1. Crea un thread temporaneo per la ricerca
       const threadResponse = await fetch("https://api.openai.com/v1/threads", {
@@ -203,11 +214,10 @@ class KnowledgeBaseService {
 
         // Invia aggiornamenti di stato se la ricerca è lunga
         const elapsedTime = Date.now() - startTime;
-        if (elapsedTime > 5000 && !progressUpdated && progressCallback) {
+        if (elapsedTime > 3000 && elapsedTime < 3500 && progressCallback) {
           progressCallback(
-            "La ricerca richiede un po' di tempo, sto analizzando i documenti..."
+            "La ricerca richiede un po' più di tempo, sto analizzando tutti i documenti disponibili..."
           );
-          progressUpdated = true;
         }
       }
 

@@ -24,11 +24,6 @@ class FunctionCallHandler {
         const args = JSON.parse(response.arguments);
         console.log(`🔍 Ricerca knowledge base: "${args.query}"`);
 
-        this._sendTextMessageToOpenAI(
-          openaiWs,
-          "Sto cercando le informazioni richieste, un attimo di pazienza..."
-        );
-
         // Callback per aggiornamenti di stato
         const progressCallback = (message) => {
           this._sendTextMessageToOpenAI(openaiWs, message);
@@ -83,26 +78,20 @@ class FunctionCallHandler {
     );
   }
 
-  /** Invia un messaggio testuale a OpenAI durante la ricerca */
-
+  /** Invia un messaggio testuale immediato a OpenAI durante la ricerca */
   _sendTextMessageToOpenAI(openaiWs, message) {
+    // Invia il messaggio come risposta immediata dell'AI
     openaiWs.send(
       JSON.stringify({
-        type: "conversation.item.create",
-        item: {
-          type: "message",
-          role: "assistant",
-          content: [
-            {
-              type: "text",
-              text: message,
-            },
-          ],
+        type: "response.create",
+        response: {
+          modalities: ["text", "audio"],
+          instructions: `Rispondi immediatamente con questo messaggio: "${message}"`,
         },
       })
     );
 
-    console.log(`🤖 Messaggio di stato inviato: "${message}"`);
+    console.log(`🤖 Messaggio di stato immediato inviato: "${message}"`);
   }
 }
 
