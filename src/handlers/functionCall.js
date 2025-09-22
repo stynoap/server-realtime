@@ -23,6 +23,17 @@ class FunctionCallHandler {
         const args = JSON.parse(response.arguments);
         console.log(`🔍 Ricerca knowledge base: "${args.query}"`);
 
+        // Invia un feedback immediato all'utente che la ricerca è iniziata
+        this._sendTextMessageToOpenAI(
+          openaiWs,
+          "Sto cercando le informazioni richieste, un attimo di pazienza..."
+        );
+
+        // Definisci il callback per gli aggiornamenti di stato
+        const progressCallback = (message) => {
+          this._sendTextMessageToOpenAI(openaiWs, message);
+        };
+
         let searchResult;
 
         if (assistantId && assistantId !== "undefined" && threadId) {
@@ -31,15 +42,28 @@ class FunctionCallHandler {
             await this.knowledgeBaseService.searchWithExistingAssistant(
               args.query,
               assistantId,
-              threadId
+              threadId,
+              progressCallback
             );
         } else {
           // Crea un assistente temporaneo
           searchResult = await this.knowledgeBaseService.searchInKnowledgeBase(
             args.query,
-            kbFileIds
+            kbFileIds,
+            progressCallback
           );
         }
+
+        // Notifica l'utente che la ricerca è completata e mostra un'anteprima dei risultati
+        const previewResult =
+          searchResult.length > 100
+            ? searchResult.substring(0, 100) + "..."
+            : searchResult;
+
+        this._sendTextMessageToOpenAI(
+          openaiWs,
+          `Ho trovato le informazioni richieste. Ecco un'anteprima: "${previewResult}"`
+        );
 
         // Invia il risultato back a OpenAI
         this._sendFunctionResult(openaiWs, response.call_id, searchResult);
@@ -68,6 +92,24 @@ class FunctionCallHandler {
         },
       })
     );
+  }
+
+  /**
+   * Invia un messaggio testuale a OpenAI durante la ricerca
+   */
+  _sendTextMessageToOpenAI(openaiWs, message) {
+    openaiWs.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "text",
+          role: "assistant",
+          content: message,
+        },
+      })
+    );
+
+    console.log(`🤖 Messaggio di stato inviato: "${message}"`);
   }
 }
 

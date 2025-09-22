@@ -78,7 +78,6 @@ class TwilioHandler {
 
     // Connetti a OpenAI e invia messaggio di benvenuto quando è pronto
     this.openaiHandler.connect(callParameters, () => {
-      // Callback chiamata quando OpenAI è connesso e configurato
       this._sendWelcomeMessage(callParameters);
     });
   }

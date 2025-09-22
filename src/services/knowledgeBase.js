@@ -10,10 +10,21 @@ class KnowledgeBaseService {
 
   /**
    * Cerca informazioni usando un assistente esistente
+   * @param {string} query - La query di ricerca
+   * @param {string} assistantId - ID dell'assistente OpenAI
+   * @param {string} threadId - ID del thread OpenAI
+   * @param {Function} progressCallback - Callback per aggiornamenti di stato (opzionale)
    */
-  async searchWithExistingAssistant(query, assistantId, threadId) {
+  async searchWithExistingAssistant(
+    query,
+    assistantId,
+    threadId,
+    progressCallback = null
+  ) {
     try {
       console.log(`🔍 Ricerca con assistente esistente: ${assistantId}`);
+      const startTime = Date.now();
+      let progressUpdated = false;
 
       // 1. Aggiungi il messaggio al thread esistente
       await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
@@ -40,6 +51,7 @@ class KnowledgeBaseService {
           body: JSON.stringify({ assistant_id: assistantId }),
         }
       );
+
       let run = await runResponse.json();
 
       // 3. Polling: aspetta che il Run sia completato
@@ -55,6 +67,15 @@ class KnowledgeBaseService {
           }
         );
         run = await statusResponse.json();
+
+        // Invia aggiornamenti di stato se la ricerca è lunga
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime > 5000 && !progressUpdated && progressCallback) {
+          progressCallback(
+            "La ricerca richiede un po' di tempo, sto analizzando i documenti..."
+          );
+          progressUpdated = true;
+        }
       }
 
       // 4. Recupera il messaggio finale
@@ -80,12 +101,17 @@ class KnowledgeBaseService {
 
   /**
    * Cerca informazioni creando un assistente temporaneo
+   * @param {string} query - La query di ricerca
+   * @param {Array} kbFileIds - Array di ID dei file nella knowledge base
+   * @param {Function} progressCallback - Callback per aggiornamenti di stato (opzionale)
    */
-  async searchInKnowledgeBase(query, kbFileIds) {
+  async searchInKnowledgeBase(query, kbFileIds, progressCallback = null) {
     try {
       console.log(
         `🔍 Ricerca con assistente temporaneo per ${kbFileIds.length} file`
       );
+      const startTime = Date.now();
+      let progressUpdated = false;
 
       // 1. Crea un thread temporaneo per la ricerca
       const threadResponse = await fetch("https://api.openai.com/v1/threads", {
@@ -170,6 +196,15 @@ class KnowledgeBaseService {
           }
         );
         runStatus = await statusResponse.json();
+
+        // Invia aggiornamenti di stato se la ricerca è lunga
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime > 5000 && !progressUpdated && progressCallback) {
+          progressCallback(
+            "La ricerca richiede un po' di tempo, sto analizzando i documenti..."
+          );
+          progressUpdated = true;
+        }
       }
 
       // 6. Recupera la risposta
