@@ -52,14 +52,34 @@ wss.on("connection", (twilioWs, req) => {
 
   let openaiWs = null;
   let streamSid = null;
-  let callParameters = {};
+  let kbFileIds = [];
+  let mokaAssistant = null;
+  let threadId = null;
 
   const connectToOpenAI = (callParameters) => {
     console.log(callParameters);
-    const { hotelNumber, callerNumber, callSid, instructions, hotelKbIds } =
-      callParameters;
-    console.log(hotelNumber, callerNumber, callSid, instructions, hotelKbIds);
-    let kbFileIds = [];
+    //TODO Aggiungere l'id dell'assistente come parametro passato da Twilio se voglio usare un assistant specifico
+    const {
+      hotelNumber,
+      callerNumber,
+      callSid,
+      instructions,
+      hotelKbIds,
+      mokaAssistant: assistantId,
+    } = callParameters;
+
+    // Assegna le variabili al livello superiore per renderle accessibili
+    mokaAssistant = assistantId;
+
+    console.log(
+      hotelNumber,
+      callerNumber,
+      callSid,
+      instructions,
+      hotelKbIds,
+      mokaAssistant
+    );
+    /* Array di id dei documenti nello storage di openai */
     try {
       kbFileIds = hotelKbIds ? JSON.parse(hotelKbIds) : [];
     } catch (e) {
@@ -68,6 +88,7 @@ wss.on("connection", (twilioWs, req) => {
     const OPENAI_WS_URL =
       "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01";
 
+    // Connetti a OpenAI Realtime WebSocket
     openaiWs = new WebSocket(OPENAI_WS_URL, {
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -82,7 +103,7 @@ wss.on("connection", (twilioWs, req) => {
         session: {
           modalities: ["text", "audio"],
           instructions: instructions,
-
+          //TODO          /* Aggiungere switcher della voce sulla base delle istruzioni, quindi tipo al TONO DELLA VOCE che passo, li mapperò in qualche modo */
           voice: "alloy", // Voce naturale
           input_audio_format: "g711_ulaw", // Formato Twilio
           output_audio_format: "g711_ulaw",
@@ -90,37 +111,31 @@ wss.on("connection", (twilioWs, req) => {
           input_audio_transcription: {
             model: "whisper-1",
           },
-
           turn_detection: {
             type: "server_vad",
-            threshold: 0.5, // Sensibilità detection
-            prefix_padding_ms: 300, // Padding inizio conversazione
-            silence_duration_ms: 700, // Interruzioni dopo 700ms silenzio
+            threshold: 0.6, // Sensibilità detection
+            prefix_padding_ms: 400, // Padding inizio conversazione
+            silence_duration_ms: 800, // Interruzioni dopo 800ms silenzio
           },
-
           // Function tool per cercare nella knowledge base
-          tools:
-            kbFileIds && kbFileIds.length > 0
-              ? [
-                  {
-                    type: "function",
-                    name: "search_knowledge_base",
+          tools: [
+            {
+              type: "function",
+              name: "search_knowledge_base",
+              description: "Cerca informazioni nella knowledge base aziendale",
+              parameters: {
+                type: "object",
+                properties: {
+                  query: {
+                    type: "string",
                     description:
-                      "Cerca informazioni nella knowledge base aziendale",
-                    parameters: {
-                      type: "object",
-                      properties: {
-                        query: {
-                          type: "string",
-                          description:
-                            "La query di ricerca per trovare informazioni rilevanti",
-                        },
-                      },
-                      required: ["query"],
-                    },
+                      "La query di ricerca per trovare informazioni rilevanti",
                   },
-                ]
-              : [],
+                },
+                required: ["query"],
+              },
+            },
+          ],
           temperature: 0.8, // Più naturale e meno robotico
         },
       };
@@ -131,6 +146,7 @@ wss.on("connection", (twilioWs, req) => {
     // OpenAI → Twilio (risposta audio dell'AI)
     openaiWs.on("message", (message) => {
       try {
+        console.log("Messaggio ricevuto da OpenAI:", message);
         const response = JSON.parse(message.toString());
 
         // Audio response dall'AI
@@ -160,12 +176,18 @@ wss.on("connection", (twilioWs, req) => {
 
         // Risposta text dell'AI (per debug)
         if (response.type === "response.text.delta") {
-          console.log("🤖 AI risponde:", response.delta);
+          console.log(" AI risponde:", response.delta);
         }
 
-        // Gestione function call per knowledge base
+        // Gestione function call per knowledge base, qui vengono cercati i documenti
         if (response.type === "response.function_call_arguments.done") {
-          handleFunctionCall(response, openaiWs);
+          handleFunctionCall(
+            response,
+            openaiWs,
+            kbFileIds,
+            mokaAssistant,
+            threadId
+          );
         }
 
         // Conferma sessione configurata
@@ -267,19 +289,32 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`🔍 Health check: https://server-realtime.onrender.com/health`);
 });
 
-// Funzione per gestire le chiamate alla knowledge base
-async function handleFunctionCall(response, openaiWs) {
+// Funzione unificata per gestire le chiamate alla knowledge base
+async function handleFunctionCall(
+  response,
+  openaiWs,
+  kbFileIds,
+  assistantId,
+  threadId
+) {
   if (response.name === "search_knowledge_base") {
     try {
       const args = JSON.parse(response.arguments);
       console.log(`🔍 Ricerca knowledge base: "${args.query}"`);
 
-      // Qui puoi implementare la ricerca nei tuoi file kbFileIds
-      // Opzione 1: Usa l'API Assistants per fare una ricerca
-      // Opzione 2: Usa embedding per cercare nel contenuto pre-caricato
+      let searchResult;
 
-      // Per ora, esempio base:
-      const searchResult = await searchInKnowledgeBase(args.query);
+      if (assistantId && assistantId !== "undefined" && threadId) {
+        // Usa l'assistente esistente se disponibile
+        searchResult = await searchWithExistingAssistant(
+          args.query,
+          assistantId,
+          threadId
+        );
+      } else {
+        // Crea un assistente temporaneo
+        searchResult = await searchInKnowledgeBase(args.query, kbFileIds);
+      }
 
       // Invia il risultato back a OpenAI
       openaiWs.send(
@@ -308,8 +343,76 @@ async function handleFunctionCall(response, openaiWs) {
   }
 }
 
+// Funzione per usare un assistente esistente
+async function searchWithExistingAssistant(query, assistantId, threadId) {
+  try {
+    // 1. Aggiungi il messaggio al thread esistente
+    await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        "OpenAI-Beta": "assistants=v2",
+      },
+      body: JSON.stringify({
+        role: "user",
+        content: query,
+      }),
+    });
+
+    // 2. Avvia il Run sul thread
+    let runResponse = await fetch(
+      `https://api.openai.com/v1/threads/${threadId}/runs`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
+        },
+        body: JSON.stringify({ assistant_id: assistantId }),
+      }
+    );
+    let run = await runResponse.json();
+
+    // 3. Polling: aspetta che il Run sia completato
+    while (run.status === "queued" || run.status === "in_progress") {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const statusResponse = await fetch(
+        `https://api.openai.com/v1/threads/${threadId}/runs/${run.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "OpenAI-Beta": "assistants=v2",
+          },
+        }
+      );
+      run = await statusResponse.json();
+    }
+
+    // 4. Recupera il messaggio finale
+    const messagesResponse = await fetch(
+      `https://api.openai.com/v1/threads/${threadId}/messages`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "OpenAI-Beta": "assistants=v2",
+        },
+      }
+    );
+
+    const messages = await messagesResponse.json();
+    const lastMessage = messages.data[0];
+
+    return lastMessage.content[0].text.value;
+  } catch (error) {
+    console.error("Errore ricerca con assistente esistente:", error);
+    return `Errore nella ricerca: ${error.message}`;
+  }
+}
+
 // Funzione di ricerca nella knowledge base usando API Assistants
-async function searchInKnowledgeBase(query) {
+async function searchInKnowledgeBase(query, kbFileIds) {
   try {
     // Crea un thread temporaneo per la ricerca
     const threadResponse = await fetch("https://api.openai.com/v1/threads", {
@@ -381,8 +484,24 @@ async function searchInKnowledgeBase(query) {
 
     const run = await runResponse.json();
 
-    // Aspetta il completamento (implementazione semplificata)
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    // Polling per aspettare il completamento
+    let runStatus = run;
+    while (
+      runStatus.status === "queued" ||
+      runStatus.status === "in_progress"
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const statusResponse = await fetch(
+        `https://api.openai.com/v1/threads/${thread.id}/runs/${run.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "OpenAI-Beta": "assistants=v2",
+          },
+        }
+      );
+      runStatus = await statusResponse.json();
+    }
 
     // Recupera la risposta
     const messagesResponse = await fetch(
@@ -411,6 +530,110 @@ async function searchInKnowledgeBase(query) {
   } catch (error) {
     console.error("Errore ricerca knowledge base:", error);
     return `Errore nella ricerca: ${error.message}`;
+  }
+}
+
+// Gestione errori globali
+process.on("uncaughtException", (error) => {
+  console.error(" Errore non gestito:", error);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Promise rejection non gestita:", reason);
+});
+
+// Funzione attuale per gestire le chiamate alla knowledge base
+async function handleFunctionCall(response, openaiWs, threadId, assistantId) {
+  if (response.name === "search_knowledge_base") {
+    try {
+      const args = JSON.parse(response.arguments);
+      console.log(`🔍 Ricerca knowledge base: "${args.query}"`);
+
+      // 1. Aggiungi il messaggio al thread esistente
+      await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Beta": "assistants=v2",
+        },
+        body: JSON.stringify({
+          role: "user",
+          content: args.query,
+          // Gli allegati li gestisce l'assistente stesso
+        }),
+      });
+
+      // 2. Avvia il Run sul thread
+      let runResponse = await fetch(
+        `https://api.openai.com/v1/threads/${threadId}/runs`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v2",
+          },
+          body: JSON.stringify({ assistant_id: assistantId }),
+        }
+      );
+      let run = await runResponse.json();
+
+      // 3. Polling: aspetta che il Run sia completato
+      // Questo è molto più affidabile di un semplice setTimeout
+      while (run.status !== "completed") {
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Aspetta 500ms
+        const statusResponse = await fetch(
+          `https://api.openai.com/v1/threads/${threadId}/runs/${run.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              "OpenAI-Beta": "assistants=v2",
+            },
+          }
+        );
+        run = await statusResponse.json();
+      }
+
+      // 4. Recupera il messaggio finale
+      const messagesResponse = await fetch(
+        `https://api.openai.com/v1/threads/${threadId}/messages`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "OpenAI-Beta": "assistants=v2",
+          },
+        }
+      );
+
+      const messages = await messagesResponse.json();
+      const lastMessage = messages.data[0];
+      const searchResult = lastMessage.content[0].text.value;
+
+      // Invia il risultato back a OpenAI
+      openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: response.call_id,
+            output: searchResult,
+          },
+        })
+      );
+    } catch (error) {
+      console.error("❌ Errore nella ricerca knowledge base:", error);
+      openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: response.call_id,
+            output: "Errore nella ricerca della knowledge base",
+          },
+        })
+      );
+    }
   }
 }
 
