@@ -98,11 +98,19 @@ wss.on("connection", (twilioWs, req) => {
 
     openaiWs.on("open", () => {
       console.log(" Connesso a OpenAI Realtime WebSocket");
+
+      // Aggiungi istruzioni specifiche per l'uso della knowledge base
+      const enhancedInstructions = `${instructions}
+
+IMPORTANTE: Quando l'utente chiede informazioni specifiche (come password WiFi, orari, servizi, etc.), DEVI SEMPRE usare la funzione search_knowledge_base per cercare le informazioni nei documenti disponibili. Non rispondere mai basandoti solo sulla tua conoscenza generale quando sono disponibili documenti specifici.
+
+Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prima di rispondere.`;
+
       const sessionConfig = {
         type: "session.update",
         session: {
           modalities: ["text", "audio"],
-          instructions: instructions,
+          instructions: enhancedInstructions,
           //TODO          /* Aggiungere switcher della voce sulla base delle istruzioni, quindi tipo al TONO DELLA VOCE che passo, li mapperò in qualche modo */
           voice: "alloy", // Voce naturale
           input_audio_format: "g711_ulaw", // Formato Twilio
@@ -117,28 +125,38 @@ wss.on("connection", (twilioWs, req) => {
             prefix_padding_ms: 400, // Padding inizio conversazione
             silence_duration_ms: 800, // Interruzioni dopo 800ms silenzio
           },
-          // Function tool per cercare nella knowledge base
-          tools: [
-            {
-              type: "function",
-              name: "search_knowledge_base",
-              description: "Cerca informazioni nella knowledge base aziendale",
-              parameters: {
-                type: "object",
-                properties: {
-                  query: {
-                    type: "string",
+          // Function tool per cercare nella knowledge base - SEMPRE attivo se ci sono file
+          tools:
+            kbFileIds && kbFileIds.length > 0
+              ? [
+                  {
+                    type: "function",
+                    name: "search_knowledge_base",
                     description:
-                      "La query di ricerca per trovare informazioni rilevanti",
+                      "Cerca informazioni nella knowledge base aziendale. USA SEMPRE questa funzione quando l'utente chiede informazioni specifiche come password WiFi, orari, servizi, prezzi, etc.",
+                    parameters: {
+                      type: "object",
+                      properties: {
+                        query: {
+                          type: "string",
+                          description:
+                            "La query di ricerca per trovare informazioni rilevanti nei documenti",
+                        },
+                      },
+                      required: ["query"],
+                    },
                   },
-                },
-                required: ["query"],
-              },
-            },
-          ],
+                ]
+              : [],
           temperature: 0.8, // Più naturale e meno robotico
         },
       };
+
+      console.log("📋 Parametri sessione:", {
+        assistantId: mokaAssistant,
+        kbFileIds: kbFileIds,
+        kbFileCount: kbFileIds ? kbFileIds.length : 0,
+      });
 
       openaiWs.send(JSON.stringify(sessionConfig));
     });
@@ -146,7 +164,6 @@ wss.on("connection", (twilioWs, req) => {
     // OpenAI → Twilio (risposta audio dell'AI)
     openaiWs.on("message", (message) => {
       try {
-        console.log("Messaggio ricevuto da OpenAI:", message);
         const response = JSON.parse(message.toString());
 
         // Audio response dall'AI
@@ -176,11 +193,12 @@ wss.on("connection", (twilioWs, req) => {
 
         // Risposta text dell'AI (per debug)
         if (response.type === "response.text.delta") {
-          console.log(" AI risponde:", response.delta);
+          console.log("🤖 AI risponde:", response.delta);
         }
 
         // Gestione function call per knowledge base, qui vengono cercati i documenti
         if (response.type === "response.function_call_arguments.done") {
+          console.log("🔧 Function call rilevata:", response);
           handleFunctionCall(
             response,
             openaiWs,
@@ -188,6 +206,11 @@ wss.on("connection", (twilioWs, req) => {
             mokaAssistant,
             threadId
           );
+        }
+
+        // Log per intercettare eventuali altre chiamate function
+        if (response.type && response.type.includes("function")) {
+          console.log(`📞 Evento function: ${response.type}`, response);
         }
 
         // Conferma sessione configurata
