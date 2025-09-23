@@ -20,16 +20,17 @@ class FunctionCallHandlerRAG {
   ) {
     if (response.name === "search_knowledge_base") {
       try {
+        /* Estrai gli argomenti dalla risposta */
         const args = JSON.parse(response.arguments);
         console.log(
           `🚀 Ricerca RAG veloce: "${args.query}" per hotel: ${hotelId}`
         );
 
-        this._sendImmediateResponse(
+        // ✅ Niente feedback immediato per evitare conflitti
+        /*       this._sendImmediateResponse(
           openaiWs,
           "Sto cercando le informazioni..."
-        );
-
+        ); */
         const startTime = Date.now();
 
         // 🚀 RICERCA RAG SUPER-VELOCE
@@ -50,6 +51,7 @@ class FunctionCallHandlerRAG {
         }
 
         const relevantDocs = await ragResponse.json();
+        console.log("📄 Documenti rilevanti ricevuti:", relevantDocs);
 
         // Costruisci il contesto dalla ricerca vettoriale
         let context = "";
@@ -82,14 +84,7 @@ class FunctionCallHandlerRAG {
         // Invia il risultato a OpenAI
         this._sendFunctionResult(openaiWs, response.call_id, searchResult);
 
-        // Forza risposta immediata
-        setTimeout(() => {
-          openaiWs.send(
-            JSON.stringify({
-              type: "response.create",
-            })
-          );
-        }, 50);
+        // ✅ OpenAI risponderà automaticamente dopo il function result
       } catch (error) {
         console.error("❌ Errore nella ricerca RAG:", error);
 
@@ -97,14 +92,7 @@ class FunctionCallHandlerRAG {
           "Errore nel sistema di ricerca. Prova a riformulare la domanda.";
         this._sendFunctionResult(openaiWs, response.call_id, errorMessage);
 
-        // Anche in caso di errore, forza una risposta
-        setTimeout(() => {
-          openaiWs.send(
-            JSON.stringify({
-              type: "response.create",
-            })
-          );
-        }, 50);
+        // ✅ OpenAI risponderà automaticamente anche in caso di errore
       }
     }
   }
