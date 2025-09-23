@@ -5,67 +5,46 @@ const {
   AI_CONFIG,
   AWS_SERVER_URL,
 } = require("../config/constants");
-const FunctionCallHandler = require("./functionCall");
+// 🚀 Usa il nuovo handler RAG veloce
+const FunctionCallHandlerRAG = require("./functionCallRAG");
 const { text } = require("express");
 
-/**
- * Handler per gestire la connessione WebSocket con OpenAI Realtime
- */
 class OpenAIHandler {
   constructor(twilioWs) {
     this.twilioWs = twilioWs;
     this.openaiWs = null;
-    this.functionCallHandler = new FunctionCallHandler();
+    this.functionCallHandler = new FunctionCallHandlerRAG();
     this.streamSid = null;
-    this.kbFileIds = [];
-    this.mokaAssistant = null;
-    this.threadId = null;
     this.hotelCallNumber = null;
     this.customerNumber = null;
+    this.hotelId = null; // ✨ Campo essenziale per RAG
     this.messages = [];
-    this.currentAssistantMessage = "";
     this.currentAssistantResponse = "";
     this.currentUserMessage = "";
   }
-
-  /**
-   * Connette a OpenAI Realtime WebSocket
-   */
+  /** Connette a OpenAI Realtime WebSocket */
   connect(callParameters, onReady = null) {
     const {
       hotelNumber,
       callerNumber,
       callSid,
       instructions,
-      hotelKbIds,
       mokaAssistant: assistantId,
+      hotelId, // ✨ Nuovo parametro per RAG
     } = callParameters;
 
     this.hotelCallNumber = hotelNumber;
     this.customerNumber = callerNumber;
+    this.hotelId = hotelId || hotelNumber; // Usa hotelId o fallback su hotelNumber
 
-    // Assegna le variabili
-    this.mokaAssistant = assistantId;
     this.onReadyCallback = onReady;
 
-    console.log("📋 Parametri chiamata:", {
+    console.log("📋 Parametri chiamata RAG:", {
       hotelNumber,
+      hotelId: this.hotelId,
       callerNumber,
       callSid,
-      assistantId,
-      kbFileCount: hotelKbIds
-        ? typeof hotelKbIds === "string"
-          ? JSON.parse(hotelKbIds).length
-          : hotelKbIds.length
-        : 0,
     });
-
-    // Parsing dei file IDs
-    try {
-      this.kbFileIds = hotelKbIds ? JSON.parse(hotelKbIds) : [];
-    } catch (e) {
-      this.kbFileIds = hotelKbIds || [];
-    }
 
     // Crea connessione WebSocket
     this.openaiWs = new WebSocket(OPENAI_WS_URL, {
@@ -84,7 +63,7 @@ class OpenAIHandler {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket");
       this._sendSessionConfig(instructions);
     });
-
+    // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
       this._handleMessage(message);
     });
@@ -102,9 +81,12 @@ class OpenAIHandler {
   _sendSessionConfig(instructions) {
     const enhancedInstructions = `${instructions}
 
-IMPORTANTE: Quando l'utente chiede informazioni specifiche (come password WiFi, orari, servizi, etc.), DEVI SEMPRE usare la funzione search_knowledge_base per cercare le informazioni nei documenti disponibili. Non rispondere mai basandoti solo sulla tua conoscenza generale quando sono disponibili documenti specifici.
+GESTIONE DELLE INFORMAZIONI:
+1. Se l'informazione richiesta è già presente nelle tue istruzioni iniziali (come saluti, informazioni di base, procedure standard), rispondi direttamente senza fare ricerche.
+2. USA la funzione search_knowledge_base SOLO quando l'utente chiede informazioni specifiche che NON sono nelle tue istruzioni (come dettagli sui servizi, prezzi, orari specifici, password WiFi, informazioni sui menu, etc.).
+3. Non fare ricerche inutili per informazioni generiche o già note dalle istruzioni.
 
-Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prima di rispondere.`;
+REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nelle istruzioni iniziali, fallo direttamente. Usa search_knowledge_base solo per informazioni dettagliate o specifiche non presenti nelle istruzioni.`;
 
     const sessionConfig = {
       type: "session.update",
@@ -126,41 +108,37 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
       },
     };
 
-    console.log("📋 Parametri sessione:", {
-      assistantId: this.mokaAssistant,
-      kbFileIds: this.kbFileIds,
-      kbFileCount: this.kbFileIds ? this.kbFileIds.length : 0,
+    console.log("📋 Sessione RAG configurata:", {
+      hotelId: this.hotelId,
+      hasSearchFunction: true, // Sempre abilitata per RAG
     });
 
     this.openaiWs.send(JSON.stringify(sessionConfig));
   }
 
-  /** Crea la configurazione dei tools */
+  /** Crea la configurazione dei tools per RAG */
   _createTools() {
-    return this.kbFileIds && this.kbFileIds.length > 0
-      ? [
-          {
-            type: "function",
-            name: "search_knowledge_base",
-            description:
-              "Cerca informazioni nella knowledge base aziendale. USA SEMPRE questa funzione quando l'utente chiede informazioni specifiche come password WiFi, orari, servizi, prezzi, etc.",
-            parameters: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description:
-                    "La query di ricerca per trovare informazioni rilevanti nei documenti",
-                },
-              },
-              required: ["query"],
+    // Con RAG abbiamo sempre la funzione di ricerca disponibile
+    return [
+      {
+        type: "function",
+        name: "search_knowledge_base",
+        description:
+          "Cerca informazioni dettagliate nella knowledge base aziendale usando il sistema RAG. Usa questa funzione SOLO quando l'utente chiede informazioni specifiche che NON sono presenti nelle istruzioni iniziali (come dettagli sui servizi, prezzi esatti, orari specifici, password WiFi, menu dettagliati, procedure specifiche). Non usarla per saluti o informazioni generiche già nelle istruzioni.",
+        parameters: {
+          type: "object",
+          properties: {
+            query: {
+              type: "string",
+              description:
+                "La query di ricerca specifica per trovare informazioni dettagliate nella knowledge base (es: 'password WiFi', 'orari colazione', 'prezzo camera doppia')",
             },
           },
-        ]
-      : [];
-  }
-
-  /** Gestisce i messaggi da OpenAI */
+          required: ["query"],
+        },
+      },
+    ];
+  } /** Gestisce i messaggi da OpenAI */
   _handleMessage(message) {
     try {
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
@@ -336,13 +314,11 @@ Se hai accesso a documenti tramite search_knowledge_base, utilizzali sempre prim
         );
       } // Function call da OpenAI
       if (response.type === "response.function_call_arguments.done") {
-        console.log("🔧 Function call rilevata:", response);
+        console.log("🔧 Function call RAG rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
           response,
           this.openaiWs,
-          this.kbFileIds,
-          this.mokaAssistant,
-          this.threadId
+          this.hotelId
         );
       }
 

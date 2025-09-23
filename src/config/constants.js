@@ -30,4 +30,5 @@ module.exports = {
   },
 
   AWS_SERVER_URL: "https://a4e47cc50c44.ngrok-free.app/call",
+  ASK_ENDPOINT: "https://5789493f77c8.ngrok-free.app/ask",
 };

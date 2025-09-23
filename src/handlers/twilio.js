@@ -37,7 +37,6 @@ class TwilioHandler {
 
       switch (data.event) {
         case "connected":
-          /* ci siamo appena connessi a twilio */
           console.log("📞 Chiamata Twilio connessa");
           break;
 
@@ -61,9 +60,7 @@ class TwilioHandler {
     }
   }
 
-  /**
-   * Gestisce l'evento start
-   */
+  /** Gestisce l'evento start  e la connessione a OpenAI e RAG */
   _handleStart(data) {
     const streamSid = data.start.streamSid;
     const callParameters = data.start.customParameters || {};
@@ -71,7 +68,6 @@ class TwilioHandler {
     console.log(`🎥 Stream iniziato: ${streamSid}`);
     console.log("📋 Parametri chiamata:", callParameters);
 
-    // Creo l'oggetto di tipo openaihandler e connetti OpenAI handler
     this.openaiHandler = new OpenAIHandler(this.twilioWs);
     this.openaiHandler.setStreamSid(streamSid);
 
@@ -90,7 +86,6 @@ class TwilioHandler {
     // Messaggio di benvenuto personalizzato in base al contesto
     const welcomeMessage = this._createWelcomeMessage(callParameters);
 
-    // Usa un timeout breve per assicurarsi che OpenAI sia completamente pronto
     setTimeout(() => {
       if (this.openaiHandler) {
         this.openaiHandler.sendTextToOpenAI(welcomeMessage);
@@ -118,7 +113,7 @@ class TwilioHandler {
   }
 
   /**
-   * Gestisce l'evento media (audio dall'utente)
+   * Gestisce l'evento media (audio dall'utente), cioè invia l'audio a OpenAI
    */
   _handleMedia(data) {
     if (data.media.payload && this.openaiHandler) {
