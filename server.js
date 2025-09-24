@@ -74,10 +74,10 @@ server.listen(PORT, "0.0.0.0", () => {
 app.post("/call", async (req, res) => {
   console.log("📞 Webhook ricevuto");
   console.log("funzione call funzionante");
-  const hotelId = null;
-  const requestBody = req.body;
-  console.log("📋 Body ricevuto:", requestBody);
-  const sipHeaders = requestBody.data.sip_headers;
+  const body = req.body.toString("utf8");
+  let hotelId = null;
+  console.log("📋 Body ricevuto:", body);
+  const sipHeaders = body.data.sip_headers;
   /* Recupero numero a cui era indirizzata la chiamata */
   for (const header of sipHeaders) {
     if (header.name === "Diversion") {
@@ -104,7 +104,7 @@ app.post("/call", async (req, res) => {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
     // Converti il buffer in string per il webhook verification
-    const body = req.body.toString("utf8");
+
     console.log("📋 Body ricevuto:", body);
 
     const event = await client.webhooks.unwrap(
