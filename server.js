@@ -138,11 +138,12 @@ app.post("/call", async (req, res) => {
 
       console.log("🏨 Hotel ID:", hotelId);
 
-      // Connetti WebSocket
+      // Connetti WebSocket - Mantieni riferimento per evitare garbage collection
       const openAiHandler = new OpenAIHandler(null);
-      setTimeout(() => {
-        openAiHandler.connectOpenAISIPTRUNK(hotelId);
-      }, 300);
+      global.currentCall = openAiHandler; // Mantieni riferimento globale
+
+      console.log("🔗 Connessione immediata al WebSocket OpenAI...");
+      openAiHandler.connectOpenAISIPTRUNK(hotelId);
 
       return res.sendStatus(200);
     } else {
