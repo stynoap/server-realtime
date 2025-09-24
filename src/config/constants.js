@@ -29,6 +29,8 @@ module.exports = {
     "OpenAI-Beta": "assistants=v2",
   },
 
+  WEBHOOK_SECRET: "whsec_BVcINq+M+Ls6oQC2Atm4T7tf7SBaOJYJE05cxP9+rKI=",
+
   AWS_SERVER_URL: "https://5789493f77c8.ngrok-free.app/call",
   ASK_ENDPOINT: "https://5789493f77c8.ngrok-free.app/ask",
 };

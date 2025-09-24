@@ -57,7 +57,20 @@ class OpenAIHandler {
     this._setupEventHandlers(instructions);
   }
 
-  /** Imposta gli event handlers per la connessione WebSocket */
+  connectOpenAISIPTRUNK() {
+    this.openaiWs = new WebSocket(OPENAI_WS_URL, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "OpenAI-Beta": "realtime=v1",
+      },
+    });
+
+    this._setupHandlersSIPTRUNK();
+  }
+
+  /**
+   * Imposta gli event handlers per la connessione WebSocket
+   */
   _setupEventHandlers(instructions) {
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket");
@@ -66,6 +79,46 @@ class OpenAIHandler {
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
       this._handleMessage(message);
+    });
+
+    this.openaiWs.on("close", () => {
+      console.log("🔴 OpenAI disconnesso");
+    });
+
+    this.openaiWs.on("error", (error) => {
+      console.error("❌ Errore OpenAI WebSocket:", error);
+    });
+  }
+
+  _setupHandlersSIPTRUNK() {
+    const callAccept = {
+      instructions:
+        "Sei un assistente virtuale, rispondi in italiano alle richieste dei clienti.",
+      type: "realtime",
+      model: "gpt-realtime",
+
+      audio: {
+        output: { voice: "alloy" },
+      },
+    };
+
+    const WELCOME_GREETING = "Grazie per aver chiamato, come posso aiutarti?";
+
+    const responseCreate = {
+      type: "response.create",
+      response: {
+        instructions: `Say to the user: ${WELCOME_GREETING}`,
+      },
+    };
+    this.openaiWs.on("open", () => {
+      console.log("🟢 Connesso a OpenAI Realtime WebSocket");
+      /* this._sendSessionConfig(instructions); */
+      this.openaiWs.send(JSON.stringify(responseCreate));
+    });
+    // questo è il momento in cui ricevo i messaggi da openai
+    this.openaiWs.on("message", (message) => {
+      console.log("messaggio in arrivo");
+      // this._handleMessage(message);
     });
 
     this.openaiWs.on("close", () => {
