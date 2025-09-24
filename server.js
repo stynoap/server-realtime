@@ -90,9 +90,10 @@ app.post("/call", async (req, res) => {
 
     console.log("✅ Evento webhook validato:", event);
 
-    const type = event?.type;
+    const type = event.type;
+    console.log(type);
 
-    if (type === "realtime.incoming_call") {
+    if (type === "realtime.call.incoming") {
       const callId = event?.data?.call_id;
       console.log(`📞 Chiamata in arrivo con ID: ${callId}`);
 
