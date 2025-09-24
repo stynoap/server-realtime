@@ -100,7 +100,7 @@ app.post("/call", async (req, res) => {
           },
           body: JSON.stringify({
             instructions:
-              "Sei un assistente virtuale che aiuta i clienti con le loro prenotazioni alberghiere. Rispondi in modo conciso e professionale.",
+              "Di al cliente: Pronto sono Rossana in cosa posso esserti utile?",
             type: "realtime",
             model: "gpt-realtime",
             audio: {
