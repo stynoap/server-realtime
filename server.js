@@ -77,7 +77,7 @@ app.post("/call", async (req, res) => {
   const body = req.body.toString("utf8");
   let hotelId = null;
   console.log("📋 Body ricevuto:", body);
-  const sipHeaders = body.data.sip_headers;
+  const sipHeaders = body.sip_headers;
   /* Recupero numero a cui era indirizzata la chiamata */
   for (const header of sipHeaders) {
     if (header.name === "Diversion") {
