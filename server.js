@@ -53,10 +53,10 @@ app.get("/", (req, res) => {
 });
 
 // Gestione connessioni WebSocket
-wss.on("connection", (twilioWs, req) => {
-  console.log("🔗 Nuova connessione Twilio WebSocket");
-  new TwilioHandler(twilioWs);
-});
+// wss.on("connection", (twilioWs, req) => {
+//   console.log("🔗 Nuova connessione Twilio WebSocket");
+//   new TwilioHandler(twilioWs);
+// });
 
 // Configurazione server
 const PORT = process.env.PORT || 5050;
