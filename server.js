@@ -27,11 +27,11 @@ console.log(
 );
 
 // WebSocket server per connessioni Twilio
-const wss = new WebSocket.Server({
+/* const wss = new WebSocket.Server({
   server,
   path: "/voice-stream",
 });
-
+ */
 // Health check endpoint
 app.get("/health", (req, res) => {
   res.json({
@@ -55,8 +55,6 @@ app.get("/", (req, res) => {
 // Gestione connessioni WebSocket
 wss.on("connection", (twilioWs, req) => {
   console.log("🔗 Nuova connessione Twilio WebSocket");
-
-  // Crea handler per gestire la connessione Twilio
   new TwilioHandler(twilioWs);
 });
 
@@ -75,7 +73,6 @@ app.post("/call", async (req, res) => {
   console.log("📞 Webhook ricevuto - ACCEPT IMMEDIATO");
 
   try {
-    // ⚡ PRIORITÀ: Accept il più veloce possibile
     const body = req.body.toString("utf8");
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const event = await client.webhooks.unwrap(
@@ -83,6 +80,8 @@ app.post("/call", async (req, res) => {
       req.headers,
       WEBHOOK_SECRET
     );
+
+    console.log(event);
 
     if (event.type === "realtime.call.incoming") {
       const callId = event?.data?.call_id;
@@ -101,10 +100,12 @@ app.post("/call", async (req, res) => {
           },
           body: JSON.stringify({
             instructions:
-              "Sei un assistente di hotel. Rispondi cordialmente in italiano.",
-            voice: "alloy",
-            temperature: 0.8,
-            model: "gpt-4o-realtime-preview-2024-10-01",
+              "Sei un assistente virtuale che aiuta i clienti con le loro prenotazioni alberghiere. Rispondi in modo conciso e professionale.",
+            type: "realtime",
+            model: "gpt-realtime",
+            audio: {
+              output: { voice: "alloy" },
+            },
           }),
         }
       );
@@ -117,11 +118,13 @@ app.post("/call", async (req, res) => {
 
       console.log("✅ Chiamata accettata!");
 
-      const parsedBody = JSON.parse(body);
+     // const parsedBody = JSON.parse(body);
       let hotelId = null;
-      const sipHeaders = parsedBody.data?.sip_headers;
 
-      if (sipHeaders && Array.isArray(sipHeaders)) {
+      /* Recupero il numero di telefono che sta venendo chiamato */
+     // const sipHeaders = parsedBody.data?.sip_headers;
+
+      /*       if (sipHeaders && Array.isArray(sipHeaders)) {
         for (const header of sipHeaders) {
           if (header.name === "Diversion") {
             const headerValue = header.value;
@@ -135,8 +138,8 @@ app.post("/call", async (req, res) => {
         }
       }
 
-      console.log("🏨 Hotel ID:", hotelId);
-
+      console.log("🏨 Hotel ID:", hotelId); */
+      hotelId = "+17752433953";
       // Connetti WebSocket - Mantieni riferimento per evitare garbage collection
       const openAiHandler = new OpenAIHandler(null);
       global.currentCall = openAiHandler; // Mantieni riferimento globale

@@ -132,7 +132,7 @@ class OpenAIHandler {
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
       console.log("messaggio in arrivo");
-      this._handleMessageSIPTRUNK(message);
+  /*     this._handleMessageSIPTRUNK(message); */
     });
 
     this.openaiWs.on("close", (code, reason) => {
