@@ -57,8 +57,10 @@ class OpenAIHandler {
     this._setupEventHandlers(instructions);
   }
 
-  connectOpenAISIPTRUNK(hotelId) {
-    this.hotelId = hotelId;
+  connectOpenAISIPTRUNK(hotelId = null) {
+    this.hotelId = hotelId; // ✅ Salva l'hotelId per RAG
+    console.log("🏨 Hotel ID impostato:", this.hotelId);
+
     this.openaiWs = new WebSocket(OPENAI_WS_URL, {
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -92,20 +94,9 @@ class OpenAIHandler {
   }
 
   _setupHandlersSIPTRUNK() {
-    const WELCOME_GREETING = "Grazie per aver chiamato, come posso aiutarti?";
-
-    const responseCreate = {
-      type: "response.create",
-      response: {
-        instructions: `Say to the user: ${WELCOME_GREETING}`,
-      },
-    };
-
-    const instructions = `Sei un assistente di hotel. Rispondi in modo cortese e professionale.`;
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket");
-      /* this._sendSessionConfig(instructions); */
-      this.openaiWs.send(JSON.stringify(responseCreate));
+      // Prima configura la sessione, poi lascia che l'AI gestisca il saluto naturalmente
       this._sendSessionConfig();
     });
     // questo è il momento in cui ricevo i messaggi da openai
@@ -114,9 +105,10 @@ class OpenAIHandler {
       this._handleMessageSIPTRUNK(message);
     });
 
-    this.openaiWs.on("close", () => {
-      console.log("🔴 OpenAI disconnesso");
-      this.close();
+    this.openaiWs.on("close", (code, reason) => {
+      console.log(`🔴 OpenAI disconnesso - Code: ${code}, Reason: ${reason}`);
+      // Non chiamare this.close() automaticamente per evitare chiusure premature
+      // Solo loggare per debug
     });
 
     this.openaiWs.on("error", (error) => {
@@ -126,7 +118,11 @@ class OpenAIHandler {
 
   /** Invia la configurazione della sessione a OpenAI */
   _sendSessionConfig(instructions = "") {
-    const enhancedInstructions = `GESTIONE DELLE INFORMAZIONI:
+    const enhancedInstructions = `Sei un assistente virtuale di hotel. Rispondi in modo cortese e professionale in italiano.
+
+COMPORTAMENTO INIZIALE: All'inizio della chiamata, saluta cordialmente il cliente con "Buongiorno, grazie per aver chiamato. Come posso aiutarla?"
+
+GESTIONE DELLE INFORMAZIONI:
 1. Se l'informazione richiesta è già presente nelle tue istruzioni iniziali (come saluti, informazioni di base, procedure standard), rispondi direttamente senza fare ricerche.
 2. USA la funzione search_knowledge_base SOLO quando l'utente chiede informazioni specifiche che NON sono nelle tue istruzioni (come dettagli sui servizi, prezzi, orari specifici, password WiFi, informazioni sui menu, etc.).
 3. Non fare ricerche inutili per informazioni generiche o già note dalle istruzioni.
