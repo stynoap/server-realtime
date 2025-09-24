@@ -91,17 +91,6 @@ class OpenAIHandler {
   }
 
   _setupHandlersSIPTRUNK() {
-    const callAccept = {
-      instructions:
-        "Sei un assistente virtuale, rispondi in italiano alle richieste dei clienti.",
-      type: "realtime",
-      model: "gpt-realtime",
-
-      audio: {
-        output: { voice: "alloy" },
-      },
-    };
-
     const WELCOME_GREETING = "Grazie per aver chiamato, come posso aiutarti?";
 
     const responseCreate = {

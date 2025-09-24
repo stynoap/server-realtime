@@ -18,7 +18,8 @@ app.use(
   })
 );
 
-// JSON parsing
+// JSON parsing per endpoint normali
+app.use("/call", express.raw({ type: "application/json" }));
 app.use(express.json());
 
 console.log(
@@ -71,24 +72,38 @@ server.listen(PORT, "0.0.0.0", () => {
 });
 
 app.post("/call", async (req, res) => {
-  console.log("ciao");
-  const body = req.body;
-
-  console.log("📞 Chiamata in arrivo:", body);
+  console.log("📞 Webhook ricevuto");
 
   try {
     console.log("test");
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // Converti il buffer in string per il webhook verification
+    const body = req.body.toString("utf8");
+    console.log("📋 Body ricevuto:", body);
+
     const event = await client.webhooks.unwrap(
-      req.body.toString("utf8"),
+      body,
       req.headers,
       WEBHOOK_SECRET
     );
 
+    console.log("✅ Evento webhook validato:", event);
+
     const type = event?.type;
 
-    if (type === RealtimeIncomingCall) {
+    if (type === "realtime.incoming_call") {
       const callId = event?.data?.call_id;
+      console.log(`📞 Chiamata in arrivo con ID: ${callId}`);
+
+      const callAcceptConfig = {
+        instructions:
+          "Sei un assistente di hotel. Rispondi in modo cortese e professionale.",
+        voice: "alloy",
+        temperature: 0.8,
+        model: "gpt-4o-realtime-preview-2024-10-01",
+      };
+
       const resp = await fetch(
         `https://api.openai.com/v1/realtime/calls/${encodeURIComponent(
           callId
@@ -99,38 +114,43 @@ app.post("/call", async (req, res) => {
             Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(callAccept),
+          body: JSON.stringify(callAcceptConfig),
         }
       );
 
       if (!resp.ok) {
         const text = await resp.text().catch(() => "");
-        console.error("ACCEPT failed:", resp.status, resp.statusText, text);
+        console.error("❌ ACCEPT failed:", resp.status, resp.statusText, text);
         return res.status(500).send("Accept failed");
       }
 
-      const openAiHandler = new OpenAIHandler("twilioWs");
+      console.log("✅ Chiamata accettata con successo");
 
+      // Connetti al WebSocket OpenAI per gestire la conversazione
+      const openAiHandler = new OpenAIHandler(null);
       setTimeout(() => {
+        console.log("🔗 Connessione al WebSocket OpenAI...");
         openAiHandler.connectOpenAISIPTRUNK();
       }, 1000);
 
       // Acknowledge the webhook
-      res.set("Authorization", `Bearer ${OPENAI_API_KEY}`);
+      return res.sendStatus(200);
+    } else {
+      console.log(`ℹ️ Evento non gestito: ${type}`);
       return res.sendStatus(200);
     }
   } catch (e) {
+    console.error("❌ Errore nel webhook:", e);
     const msg = String(e?.message ?? "");
     if (
       e?.name === "InvalidWebhookSignatureError" ||
       msg.toLowerCase().includes("invalid signature")
     ) {
+      console.error("❌ Firma webhook non valida");
       return res.status(400).send("Invalid signature");
     }
     return res.status(500).send("Server error");
   }
-
-  // parte di gestione della chiamata
 });
 
 // Gestione errori globali
