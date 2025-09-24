@@ -73,6 +73,29 @@ server.listen(PORT, "0.0.0.0", () => {
 
 app.post("/call", async (req, res) => {
   console.log("📞 Webhook ricevuto");
+  console.log("funzione call funzionante");
+  const hotelId = null;
+  const sipHeaders = requestBody.data.sip_headers;
+  /* Recupero numero a cui era indirizzata la chiamata */
+  for (const header of sipHeaders) {
+    if (header.name === "Diversion") {
+      const headerValue = header.value;
+      // Estrai la parte tra 'sip:' e '@'
+      const startIndex = headerValue.indexOf("sip:") + 4; // +4 per saltare 'sip:'
+      const endIndex = headerValue.indexOf("@");
+      if (startIndex !== -1 && endIndex !== -1) {
+        hotelId = headerValue.substring(startIndex, endIndex);
+      }
+      break; // Abbiamo trovato l'header che ci serve, possiamo uscire
+    }
+  }
+
+  if (hotelId) {
+    console.log("ID hotel chiamato:", hotelId);
+    // Usa l'ID per la tua logica
+  } else {
+    console.log("Header Diversion non trovato.");
+  }
 
   try {
     console.log("test");
@@ -129,9 +152,10 @@ app.post("/call", async (req, res) => {
 
       // Connetti al WebSocket OpenAI per gestire la conversazione
       const openAiHandler = new OpenAIHandler(null);
+      /* Fare una get per ottenere le istruzioni */
       setTimeout(() => {
         console.log("🔗 Connessione al WebSocket OpenAI...");
-        openAiHandler.connectOpenAISIPTRUNK();
+        openAiHandler.connectOpenAISIPTRUNK(hotelId);
       }, 1000);
 
       // Acknowledge the webhook
