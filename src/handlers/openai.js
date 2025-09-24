@@ -63,7 +63,7 @@ class OpenAIHandler {
     this._setupEventHandlers(instructions);
   }
 
-  connectOpenAISIPTRUNK(hotelId = null) {
+  connectOpenAISIPTRUNK(hotelId) {
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
     console.log("🏨 Hotel ID impostato:", this.hotelId);
     console.log("🔌 Tentativo connessione WebSocket OpenAI...");
@@ -83,13 +83,23 @@ class OpenAIHandler {
    * Imposta gli event handlers per la connessione WebSocket
    */
   _setupEventHandlers(instructions) {
+    const WELCOME_GREETING = "Thank you for calling, how can I help?";
+
+    const responseCreate = {
+      type: "response.create",
+      response: {
+        instructions: `Say to the user: ${WELCOME_GREETING}`,
+      },
+    };
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket");
-      this._sendSessionConfig(instructions);
+      this.openaiWs.send(JSON.stringify(responseCreate));
+      /*     this._sendSessionConfig(instructions); */
     });
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
-      this._handleMessage(message);
+      /*     this._handleMessage(message); */
+      console.log(message);
     });
 
     this.openaiWs.on("close", () => {

@@ -117,7 +117,6 @@ app.post("/call", async (req, res) => {
 
       console.log("✅ Chiamata accettata!");
 
-      // 🔄 DOPO accept, estrai hotel ID
       const parsedBody = JSON.parse(body);
       let hotelId = null;
       const sipHeaders = parsedBody.data?.sip_headers;
