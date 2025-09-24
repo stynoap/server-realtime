@@ -75,20 +75,24 @@ app.post("/call", async (req, res) => {
   console.log("📞 Webhook ricevuto");
   console.log("funzione call funzionante");
   const body = req.body.toString("utf8");
+  const parsedBody = JSON.parse(body);
   let hotelId = null;
   console.log("📋 Body ricevuto:", body);
-  const sipHeaders = body.sip_headers;
-  /* Recupero numero a cui era indirizzata la chiamata */
-  for (const header of sipHeaders) {
-    if (header.name === "Diversion") {
-      const headerValue = header.value;
-      // Estrai la parte tra 'sip:' e '@'
-      const startIndex = headerValue.indexOf("sip:") + 4; // +4 per saltare 'sip:'
-      const endIndex = headerValue.indexOf("@");
-      if (startIndex !== -1 && endIndex !== -1) {
-        hotelId = headerValue.substring(startIndex, endIndex);
+  const sipHeaders = parsedBody.data?.sip_headers; // ✅ Accedi ai sip_headers dall'evento
+
+  if (sipHeaders && Array.isArray(sipHeaders)) {
+    /* Recupero numero a cui era indirizzata la chiamata */
+    for (const header of sipHeaders) {
+      if (header.name === "Diversion") {
+        const headerValue = header.value;
+        // Estrai la parte tra 'sip:' e '@'
+        const startIndex = headerValue.indexOf("sip:") + 4; // +4 per saltare 'sip:'
+        const endIndex = headerValue.indexOf("@");
+        if (startIndex !== -1 && endIndex !== -1) {
+          hotelId = headerValue.substring(startIndex, endIndex);
+        }
+        break; // Abbiamo trovato l'header che ci serve, possiamo uscire
       }
-      break; // Abbiamo trovato l'header che ci serve, possiamo uscire
     }
   }
 
