@@ -72,68 +72,23 @@ server.listen(PORT, "0.0.0.0", () => {
 });
 
 app.post("/call", async (req, res) => {
-  console.log("📞 Webhook ricevuto");
-  console.log("funzione call funzionante");
-  const body = req.body.toString("utf8");
-  const parsedBody = JSON.parse(body);
-  let hotelId = null;
-  console.log("📋 Body ricevuto:", body);
-  const sipHeaders = parsedBody.data?.sip_headers; // ✅ Accedi ai sip_headers dall'evento
-
-  if (sipHeaders && Array.isArray(sipHeaders)) {
-    /* Recupero numero a cui era indirizzata la chiamata */
-    for (const header of sipHeaders) {
-      if (header.name === "Diversion") {
-        const headerValue = header.value;
-        // Estrai la parte tra 'sip:' e '@'
-        const startIndex = headerValue.indexOf("sip:") + 4; // +4 per saltare 'sip:'
-        const endIndex = headerValue.indexOf("@");
-        if (startIndex !== -1 && endIndex !== -1) {
-          hotelId = headerValue.substring(startIndex, endIndex);
-        }
-        break; // Abbiamo trovato l'header che ci serve, possiamo uscire
-      }
-    }
-  }
-
-  if (hotelId) {
-    console.log("ID hotel chiamato:", hotelId);
-    // Usa l'ID per la tua logica
-  } else {
-    console.log("Header Diversion non trovato.");
-  }
+  console.log("📞 Webhook ricevuto - ACCEPT IMMEDIATO");
 
   try {
-    console.log("test");
+    // ⚡ PRIORITÀ: Accept il più veloce possibile
+    const body = req.body.toString("utf8");
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    // Converti il buffer in string per il webhook verification
-
-    console.log("📋 Body ricevuto:", body);
-
     const event = await client.webhooks.unwrap(
       body,
       req.headers,
       WEBHOOK_SECRET
     );
 
-    console.log("✅ Evento webhook validato:", event);
-
-    const type = event.type;
-    console.log(type);
-
-    if (type === "realtime.call.incoming") {
+    if (event.type === "realtime.call.incoming") {
       const callId = event?.data?.call_id;
-      console.log(`📞 Chiamata in arrivo con ID: ${callId}`);
+      console.log(`⚡ ACCEPT IMMEDIATO per: ${callId}`);
 
-      const callAcceptConfig = {
-        instructions:
-          "Sei un assistente di hotel. Rispondi in modo cortese e professionale.",
-        voice: "alloy",
-        temperature: 0.8,
-        model: "gpt-4o-realtime-preview-2024-10-01",
-      };
-
+      // ⚡ Accept SUBITO - senza processing aggiuntivo
       const resp = await fetch(
         `https://api.openai.com/v1/realtime/calls/${encodeURIComponent(
           callId
@@ -144,7 +99,13 @@ app.post("/call", async (req, res) => {
             Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(callAcceptConfig),
+          body: JSON.stringify({
+            instructions:
+              "Sei un assistente di hotel. Rispondi cordialmente in italiano.",
+            voice: "alloy",
+            temperature: 0.8,
+            model: "gpt-4o-realtime-preview-2024-10-01",
+          }),
         }
       );
 
@@ -154,30 +115,43 @@ app.post("/call", async (req, res) => {
         return res.status(500).send("Accept failed");
       }
 
-      console.log("✅ Chiamata accettata con successo");
+      console.log("✅ Chiamata accettata!");
 
-      // Connetti al WebSocket OpenAI per gestire la conversazione
+      // 🔄 DOPO accept, estrai hotel ID
+      const parsedBody = JSON.parse(body);
+      let hotelId = null;
+      const sipHeaders = parsedBody.data?.sip_headers;
+
+      if (sipHeaders && Array.isArray(sipHeaders)) {
+        for (const header of sipHeaders) {
+          if (header.name === "Diversion") {
+            const headerValue = header.value;
+            const startIndex = headerValue.indexOf("sip:") + 4;
+            const endIndex = headerValue.indexOf("@");
+            if (startIndex !== -1 && endIndex !== -1) {
+              hotelId = headerValue.substring(startIndex, endIndex);
+            }
+            break;
+          }
+        }
+      }
+
+      console.log("🏨 Hotel ID:", hotelId);
+
+      // Connetti WebSocket
       const openAiHandler = new OpenAIHandler(null);
-      /* Fare una get per ottenere le istruzioni */
       setTimeout(() => {
-        console.log("🔗 Connessione al WebSocket OpenAI...");
         openAiHandler.connectOpenAISIPTRUNK(hotelId);
-      }, 1000);
+      }, 300);
 
-      // Acknowledge the webhook
       return res.sendStatus(200);
     } else {
-      console.log(`ℹ️ Evento non gestito: ${type}`);
+      console.log(`ℹ️ Evento non gestito: ${event.type}`);
       return res.sendStatus(200);
     }
   } catch (e) {
     console.error("❌ Errore nel webhook:", e);
-    const msg = String(e?.message ?? "");
-    if (
-      e?.name === "InvalidWebhookSignatureError" ||
-      msg.toLowerCase().includes("invalid signature")
-    ) {
-      console.error("❌ Firma webhook non valida");
+    if (e?.name === "InvalidWebhookSignatureError") {
       return res.status(400).send("Invalid signature");
     }
     return res.status(500).send("Server error");
