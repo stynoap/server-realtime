@@ -117,14 +117,14 @@ class OpenAIHandler {
     const responseCreate = {
       type: "response.create",
       response: {
-        instructions: `Say to the user: ${WELCOME_GREETING}`,
+        instructions: `Di al cliente: Pronto sono Rossana in cosa posso esserti utile?`,
       },
     };
 
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK");
       console.log("📋 Invio configurazione sessione...");
-      this._sendSessionConfig();
+      //this._sendSessionConfig();
 
       console.log("🎤 Invio saluto iniziale...");
       this.openaiWs.send(JSON.stringify(responseCreate));
