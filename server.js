@@ -75,6 +75,8 @@ app.post("/call", async (req, res) => {
   console.log("📞 Webhook ricevuto");
   console.log("funzione call funzionante");
   const hotelId = null;
+  const requestBody = req.body;
+  console.log("📋 Body ricevuto:", requestBody);
   const sipHeaders = requestBody.data.sip_headers;
   /* Recupero numero a cui era indirizzata la chiamata */
   for (const header of sipHeaders) {
