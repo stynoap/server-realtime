@@ -143,7 +143,6 @@ app.post("/call", async (req, res) => {
       hotelId = "+17752433953";
       // Connetti WebSocket - Mantieni riferimento per evitare garbage collection
       const openAiHandler = new OpenAIHandler(null);
-      global.currentCall = openAiHandler; // Mantieni riferimento globale
 
       console.log("🔗 Connessione immediata al WebSocket OpenAI...");
       openAiHandler.connectOpenAISIPTRUNK(hotelId);

@@ -451,12 +451,6 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
       const response = JSON.parse(message.toString());
       console.log("messaggio in arrivo, messaggio:", response);
-
-      // Log di debug per tutti gli eventi (commentare in produzione)
-      if (response.type && !response.type.includes("audio.delta")) {
-        console.log(`🔍 Evento OpenAI: ${response.type}`);
-      }
-
       // Sessione configurata
       if (response.type === "session.updated") {
         console.log("✅ Sessione OpenAI configurata");
@@ -464,22 +458,19 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
         /* Non supporta che gli metti modalities audio */
         const responseCreate = {
           type: "response.create",
+          modalities: ["audio"],
           response: {
             instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
           },
         };
-        this.openaiWs.send(JSON.stringify(responseCreate));
+        setTimeout(() => {
+          this.openaiWs.send(JSON.stringify(responseCreate));
+        }, 1000);
         return;
-
-        /*     if (
-          this.onReadyCallback &&
-          typeof this.onReadyCallback === "function"
-        ) {
-          setTimeout(() => {
-            this.onReadyCallback();
-            this.onReadyCallback = null; // Chiama solo una volta
-          }, 1000);
-        } */
+      }
+      // Log di debug per tutti gli eventi (commentare in produzione)
+      if (response.type && !response.type.includes("audio.delta")) {
+        console.log(`🔍 Evento OpenAI: ${response.type}`);
       }
 
       // Trascrizione dell'audio dell'utente in arrivo
@@ -819,6 +810,38 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
 
       this.openaiWs.close();
     }
+  }
+
+  /** Crea il messaggio di benvenuto personalizzato */
+  _createWelcomeMessage() {
+    const hour = new Date().getHours();
+    let welcomeMessage;
+
+    if (hour < 12) {
+      welcomeMessage =
+        "Buongiorno! Sono l'assistente virtuale. Come posso aiutarla oggi?";
+    } else if (hour < 18) {
+      welcomeMessage =
+        "Buon pomeriggio! Sono l'assistente virtuale. Come posso aiutarla oggi?";
+    } else {
+      welcomeMessage =
+        "Buonasera! Sono l'assistente virtuale. Come posso aiutarla oggi?";
+    }
+
+    return welcomeMessage;
+  }
+
+  _sendWelcomeMessage() {
+    console.log("🎙️ Inviando messaggio di benvenuto...");
+
+    // Messaggio di benvenuto personalizzato in base al contesto
+    const welcomeMessage = this._createWelcomeMessage();
+
+    setTimeout(() => {
+      if (this.openaiHandler) {
+        this.openaiHandler.sendTextToOpenAI(welcomeMessage);
+      }
+    }, 500);
   }
 }
 
