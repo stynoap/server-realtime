@@ -100,16 +100,6 @@ class OpenAIHandler {
     this.openaiWs.on("message", (message) => {
       /*     this._handleMessage(message); */
       console.log(message);
-      if (response.type === "session.updated") {
-        console.log("✅ Sessione configurata, invio saluto iniziale...");
-        const responseCreate = {
-          type: "response.create",
-          response: {
-            instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
-          },
-        };
-        this.openaiWs.send(JSON.stringify(responseCreate));
-      }
     });
 
     this.openaiWs.on("close", () => {
@@ -130,18 +120,33 @@ class OpenAIHandler {
         instructions: `Di al cliente: Pronto sono Rossana in cosa posso esserti utile?`,
       },
     };
-
+    // la connessione è stata stabilita
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK");
       console.log("📋 Invio configurazione sessione...");
       //this._sendSessionConfig();
 
-      console.log("🎤 Invio saluto iniziale...");
-      this.openaiWs.send(JSON.stringify(responseCreate));
+      console.log(" Dentro la open...");
+      /*       this.openaiWs.send(JSON.stringify(responseCreate)); */
     });
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
-      console.log("messaggio in arrivo");
+      console.log(
+        "messaggio in arrivo, messaggio:",
+        JSON.parse(message.toString())
+      );
+      const response = JSON.parse(message.toString());
+
+      if (response.type === "session.updated") {
+        console.log("✅ Sessione configurata, invio saluto iniziale...");
+        const responseCreate = {
+          type: "response.create",
+          response: {
+            instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
+          },
+        };
+        this.openaiWs.send(JSON.stringify(responseCreate));
+      }
       /*     this._handleMessageSIPTRUNK(message); */
     });
 
