@@ -122,11 +122,13 @@ class OpenAIHandler {
     };
     // la connessione è stata stabilita
     this.openaiWs.on("open", () => {
-      console.log("🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK");
+      console.log(
+        "🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK, dentro la open..."
+      );
       console.log("📋 Invio configurazione sessione...");
       this._sendSessionConfig();
 
-      console.log(" Dentro la open...");
+      console.log("Dopo che ho configurato la sessione");
       /*       this.openaiWs.send(JSON.stringify(responseCreate)); */
     });
     // questo è il momento in cui ricevo i messaggi da openai
@@ -135,18 +137,7 @@ class OpenAIHandler {
         "messaggio in arrivo, messaggio:",
         JSON.parse(message.toString())
       );
-      // const response = JSON.parse(message.toString());
 
-      if (response.type === "session.updated") {
-        console.log("✅ Sessione configurata, invio saluto iniziale...");
-        const responseCreate = {
-          type: "response.create",
-          response: {
-            instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
-          },
-        };
-        this.openaiWs.send(JSON.stringify(responseCreate));
-      }
       this._handleMessageSIPTRUNK(message);
     });
 
@@ -162,13 +153,13 @@ class OpenAIHandler {
   }
 
   /** Invia la configurazione della sessione a OpenAI */
-  _sendSessionConfig(instructions = "") {
+  _sendSessionConfig() {
     console.log("avvio la configurazione della sessione");
     const enhancedInstructions = `Sei un assistente virtuale di hotel. Rispondi come lingua di default in italiano altrimenti adattati alla lingua del cliente. Rispondi in modo cortese e professionale.
 
 COMPORTAMENTO INIZIALE: All'inizio della chiamata, saluta cordialmente il cliente con "Buongiorno, grazie per aver chiamato. Come posso aiutarla?"
 
-⚠️ REGOLE ASSOLUTE:
+REGOLE ASSOLUTE:
 1. NON CONOSCI informazioni specifiche di questo hotel come:
    - Password WiFi
    - Prezzi delle camere
@@ -478,6 +469,7 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
           },
         };
         this.openaiWs.send(JSON.stringify(responseCreate));
+        return;
 
         /*     if (
           this.onReadyCallback &&
