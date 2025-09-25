@@ -75,7 +75,11 @@ app.post("/call", async (req, res) => {
   try {
     const body = req.body.toString("utf8");
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const event = await client.webhooks.unwrap(body, req.headers);
+    const event = await client.webhooks.unwrap(
+      body,
+      req.headers,
+      process.env.WEBHOOK_SECRET
+    );
     //ho da qui rimosso la webhook secret
 
     console.log(event);
