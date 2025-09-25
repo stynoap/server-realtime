@@ -63,12 +63,12 @@ class OpenAIHandler {
     this._setupEventHandlers(instructions);
   }
 
-  connectOpenAISIPTRUNK(hotelId) {
+  connectOpenAISIPTRUNK(hotelId, wssUrl) {
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
     console.log("🏨 Hotel ID impostato:", this.hotelId);
     console.log("🔌 Tentativo connessione WebSocket OpenAI...");
 
-    this.openaiWs = new WebSocket(OPENAI_WS_URL, {
+    this.openaiWs = new WebSocket(wssUrl, {
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "OpenAI-Beta": "realtime=v1",
@@ -125,8 +125,8 @@ class OpenAIHandler {
       console.log(
         "🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK, dentro la open..."
       );
-      console.log("📋 Invio configurazione sessione...");
-      this._sendSessionConfig();
+      /*       console.log("📋 Invio configurazione sessione...");
+      this._sendSessionConfig(); */
 
       console.log("Dopo che ho configurato la sessione");
       /*       this.openaiWs.send(JSON.stringify(responseCreate)); */

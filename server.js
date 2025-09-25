@@ -99,14 +99,36 @@ app.post("/call", async (req, res) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            instructions: `
-         "Sei un assistente di hotel. Aspetta la configurazione completa della sessione.",
-            `,
             type: "realtime",
             model: "gpt-realtime",
+            instructions: `
+         Sei l’assistente dell’hotel. Rispondi in italiano salvo diversa lingua del cliente. Per informazioni specifiche (WiFi, prezzi, orari, menu) DEVI usare il tool search_knowledge_base e non inventare.,
+            `,
             audio: {
-              output: { voice: "alloy" },
+              input: { format: "g711_ulaw" }, // coerente con SIP u-law
+              output: { voice: "alloy", format: "g711_ulaw" },
             },
+            input_audio_transcription: { model: "gpt-4o-mini-transcribe" }, // o whisper-1
+            turn_detection: { type: "server_vad" },
+            tools: [
+              {
+                type: "function",
+                name: "search_knowledge_base",
+                description: "Cerca nella knowledge base dell’hotel.",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    query: {
+                      type: "string",
+                      description:
+                        "Domanda specifica (es. 'password WiFi', 'orari colazione', 'prezzo camera doppia')",
+                    },
+                  },
+                  required: ["query"],
+                },
+              },
+            ],
+            tool_choice: "auto",
           }),
         }
       );
@@ -142,10 +164,12 @@ app.post("/call", async (req, res) => {
       console.log("🏨 Hotel ID:", hotelId); */
       hotelId = "+17752433953";
       // Connetti WebSocket - Mantieni riferimento per evitare garbage collection
+      const wssUrl = `wss://api.openai.com/v1/realtime?call_id=${callId}`;
       const openAiHandler = new OpenAIHandler(null);
 
       console.log("🔗 Connessione immediata al WebSocket OpenAI...");
-      openAiHandler.connectOpenAISIPTRUNK(hotelId);
+
+      openAiHandler.connectOpenAISIPTRUNK(hotelId, wssUrl);
 
       return res.sendStatus(200);
     } else {
