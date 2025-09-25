@@ -124,7 +124,7 @@ class OpenAIHandler {
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK");
       console.log("📋 Invio configurazione sessione...");
-      //this._sendSessionConfig();
+      this._sendSessionConfig();
 
       console.log(" Dentro la open...");
       /*       this.openaiWs.send(JSON.stringify(responseCreate)); */
@@ -163,6 +163,7 @@ class OpenAIHandler {
 
   /** Invia la configurazione della sessione a OpenAI */
   _sendSessionConfig(instructions = "") {
+    console.log("avvio la configurazione della sessione");
     const enhancedInstructions = `Sei un assistente virtuale di hotel. Rispondi in modo cortese e professionale in italiano.
 
 COMPORTAMENTO INIZIALE: All'inizio della chiamata, saluta cordialmente il cliente con "Buongiorno, grazie per aver chiamato. Come posso aiutarla?"
