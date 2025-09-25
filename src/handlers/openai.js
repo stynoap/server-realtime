@@ -66,6 +66,7 @@ class OpenAIHandler {
   connectOpenAISIPTRUNK(hotelId, wssUrl) {
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
     console.log("🏨 Hotel ID impostato:", this.hotelId);
+    console.log("📋 URL WebSocket OpenAI:", wssUrl);
 
     setTimeout(() => {
       console.log("🔌 Tentativo connessione WebSocket OpenAI...");

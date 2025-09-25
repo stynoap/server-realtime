@@ -99,14 +99,9 @@ app.post("/call", async (req, res) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            type: "realtime",
             instructions:
               "Sei un assistente virtuale per un hotel. Rispondi in modo conciso e professionale.",
-            type: "realtime",
-            model: "gpt-realtime",
-
-            audio: {
-              output: { voice: "alloy" },
-            },
           }),
         }
       );
@@ -117,8 +112,7 @@ app.post("/call", async (req, res) => {
         return res.status(500).send("Accept failed");
       }
 
-      console.log("✅ Chiamata accettata!");
-      console.log(resp);
+      console.log(resp, " la risposta dall'accept");
 
       // const parsedBody = JSON.parse(body);
       let hotelId = null;
