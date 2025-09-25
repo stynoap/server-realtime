@@ -130,23 +130,38 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            instructions: enhancedInstructions,
             type: "realtime",
-            input_audio_format: "g711_ulaw", // obbligatorio per SIP
-            output_audio_format: "g711_ulaw", // obbligatorio per SIP
+            instructions: enhancedInstructions,
+            model: "gpt-4o-realtime", // opzionale, ma consigliato per chiarezza
+            output_modalities: ["audio"], // opzionale, default audio
             audio: {
               input: {
+                format: {
+                  type: "audio/pcm", // oppure "audio/g711_ulaw" se richiesto dal provider
+                  rate: 24000, // oppure 8000 per g711_ulaw
+                },
                 transcription: {
-                  model: "whisper-1", // modello di trascrizione
+                  model: "whisper-1",
+                },
+                // noise_reduction: null, // opzionale
+                turn_detection: {
+                  type: "server_vad",
+                  threshold: 0.5,
+                  prefix_padding_ms: 300,
+                  silence_duration_ms: 200,
+                  // idle_timeout_ms: null,
+                  create_response: true,
+                  interrupt_response: true,
                 },
               },
               output: {
-                voice: "alloy", // voce TTS (opzionale, scegli quella che preferisci)
+                format: {
+                  type: "audio/pcm", // oppure "audio/g711_ulaw"
+                  rate: 24000, // oppure 8000 per g711_ulaw
+                },
+                voice: "alloy",
+                speed: 1.0,
               },
-            },
-            turn_detection: {
-              type: "server_vad", // Voice Activity Detection
-              // ...altri parametri VAD opzionali...
             },
           }),
         }
