@@ -197,6 +197,7 @@ REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nel
     };
 
     this.openaiWs.send(JSON.stringify(sessionConfig));
+    console.log(" Configurazione sessione inviata a OpenAI");
   }
 
   /** Crea la configurazione dei tools per RAG */
