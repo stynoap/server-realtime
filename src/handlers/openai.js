@@ -68,15 +68,13 @@ class OpenAIHandler {
     console.log("🏨 Hotel ID impostato:", this.hotelId);
     console.log("📋 URL WebSocket OpenAI:", wssUrl);
 
-    setTimeout(() => {
-      console.log("🔌 Tentativo connessione WebSocket OpenAI...");
-      this.openaiWs = new WebSocket(wssUrl, {
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          origin: "https://api.openai.com",
-        },
-      });
-    }, 1000);
+    console.log("🔌 Tentativo connessione WebSocket OpenAI...");
+    this.openaiWs = new WebSocket(wssUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        origin: "https://api.openai.com",
+      },
+    });
     console.log(wssUrl);
     this._setupHandlersSIPTRUNK();
     console.log(this.openaiWs);
