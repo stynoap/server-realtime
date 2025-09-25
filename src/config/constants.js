@@ -19,7 +19,7 @@ module.exports = {
   // Configurazione AI
   AI_CONFIG: {
     voice: "alloy",
-    temperature: 0.3,
+    temperature: 0.6,
     model: "gpt-4o-mini",
   },
 
