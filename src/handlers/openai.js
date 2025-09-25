@@ -142,7 +142,6 @@ class OpenAIHandler {
         const responseCreate = {
           type: "response.create",
           response: {
-            modalities: ["audio"],
             instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
           },
         };
@@ -441,6 +440,7 @@ REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nel
     try {
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
       const response = JSON.parse(message.toString());
+      console.log("messaggio in arrivo, messaggio:", response);
 
       // Log di debug per tutti gli eventi (commentare in produzione)
       if (response.type && !response.type.includes("audio.delta")) {
