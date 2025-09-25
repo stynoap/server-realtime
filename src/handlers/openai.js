@@ -135,19 +135,20 @@ class OpenAIHandler {
         "messaggio in arrivo, messaggio:",
         JSON.parse(message.toString())
       );
-      const response = JSON.parse(message.toString());
+      // const response = JSON.parse(message.toString());
 
-      if (response.type === "session.updated") {
+      /*       if (response.type === "session.updated") {
         console.log("✅ Sessione configurata, invio saluto iniziale...");
         const responseCreate = {
           type: "response.create",
           response: {
+            modalities: ["audio"],
             instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
           },
         };
         this.openaiWs.send(JSON.stringify(responseCreate));
-      }
-      /*     this._handleMessageSIPTRUNK(message); */
+      } */
+      this._handleMessageSIPTRUNK(message);
     });
 
     this.openaiWs.on("close", (code, reason) => {
@@ -444,6 +445,30 @@ REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nel
         console.log(`🔍 Evento OpenAI: ${response.type}`);
       }
 
+      // Sessione configurata
+      if (response.type === "session.updated") {
+        console.log("✅ Sessione OpenAI configurata");
+        console.log("✅ Sessione configurata, invio saluto iniziale...");
+        const responseCreate = {
+          type: "response.create",
+          response: {
+            modalities: ["audio"],
+            instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
+          },
+        };
+        this.openaiWs.send(JSON.stringify(responseCreate));
+
+        /*     if (
+          this.onReadyCallback &&
+          typeof this.onReadyCallback === "function"
+        ) {
+          setTimeout(() => {
+            this.onReadyCallback();
+            this.onReadyCallback = null; // Chiama solo una volta
+          }, 1000);
+        } */
+      }
+
       // Trascrizione dell'audio dell'utente in arrivo
       if (
         response.type ===
@@ -611,22 +636,6 @@ REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nel
       // Log per altri eventi function
       if (response.type && response.type.includes("function")) {
         console.log(`📞 Evento function: ${response.type}`, response);
-      }
-
-      // Sessione configurata
-      if (response.type === "session.updated") {
-        console.log("✅ Sessione OpenAI configurata");
-
-        // Chiama il callback se disponibile (per il messaggio di benvenuto)
-        if (
-          this.onReadyCallback &&
-          typeof this.onReadyCallback === "function"
-        ) {
-          setTimeout(() => {
-            this.onReadyCallback();
-            this.onReadyCallback = null; // Chiama solo una volta
-          }, 1000);
-        }
       }
 
       // Errori
