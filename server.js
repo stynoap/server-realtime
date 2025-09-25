@@ -135,21 +135,6 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
             model: "gpt-realtime", // opzionale, ma consigliato per chiarezza
             output_modalities: ["audio"], // opzionale, default audio
             audio: {
-              input: {
-                transcription: {
-                  model: "whisper-1",
-                },
-                // noise_reduction: null, // opzionale
-                turn_detection: {
-                  type: "server_vad",
-                  threshold: 0.5,
-                  prefix_padding_ms: 300,
-                  silence_duration_ms: 200,
-                  // idle_timeout_ms: null,
-                  create_response: true,
-                  interrupt_response: true,
-                },
-              },
               output: {
                 voice: "alloy",
               },
