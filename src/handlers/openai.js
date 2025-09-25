@@ -164,7 +164,6 @@ class OpenAIHandler {
       session: {
         type: "realtime",
         tools: this._createTools(),
-        temperature: AI_CONFIG.temperature,
       },
     };
 
