@@ -424,9 +424,9 @@ class OpenAIHandler {
             instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
           },
         };
-        setTimeout(() => {
-          this.openaiWs.send(JSON.stringify(responseCreate));
-        }, 1000);
+        /* Da qua ho eliminato il setTimout */
+        this.openaiWs.send(JSON.stringify(responseCreate));
+
         return;
       }
       // Log di debug per tutti gli eventi (commentare in produzione)

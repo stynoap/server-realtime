@@ -90,6 +90,7 @@ class FunctionCallHandlerRAG {
 
         const errorMessage =
           "Errore nel sistema di ricerca. Prova a riformulare la domanda.";
+        console.log(response, response.callId, "la risposta e il callId");
         this._sendFunctionResult(openaiWs, response.call_id, errorMessage);
 
         // ✅ OpenAI risponderà automaticamente anche in caso di errore
@@ -107,6 +108,12 @@ class FunctionCallHandlerRAG {
           call_id: callId,
           output: result,
         },
+      })
+    );
+    openaiWs.send(
+      JSON.stringify({
+        type: "response.create",
+        response: {},
       })
     );
   }
