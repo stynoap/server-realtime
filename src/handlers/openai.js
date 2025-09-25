@@ -193,7 +193,6 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
       session: {
         type: "realtime",
         instructions: enhancedInstructions,
-        voice: AI_CONFIG.voice,
         input_audio_format: "g711_ulaw",
         output_audio_format: "g711_ulaw",
         input_audio_transcription: {
