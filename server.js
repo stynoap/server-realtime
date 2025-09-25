@@ -99,36 +99,14 @@ app.post("/call", async (req, res) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            instructions:
+              "Sei un assistente virtuale per un hotel. Rispondi in modo conciso e professionale.",
             type: "realtime",
             model: "gpt-realtime",
-            instructions: `
-         Sei l’assistente dell’hotel. Rispondi in italiano salvo diversa lingua del cliente. Per informazioni specifiche (WiFi, prezzi, orari, menu) DEVI usare il tool search_knowledge_base e non inventare.,
-            `,
+
             audio: {
-              input: { format: "g711_ulaw" }, // coerente con SIP u-law
-              output: { voice: "alloy", format: "g711_ulaw" },
+              output: { voice: "alloy" },
             },
-            input_audio_transcription: { model: "gpt-4o-mini-transcribe" }, // o whisper-1
-            turn_detection: { type: "server_vad" },
-            tools: [
-              {
-                type: "function",
-                name: "search_knowledge_base",
-                description: "Cerca nella knowledge base dell’hotel.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    query: {
-                      type: "string",
-                      description:
-                        "Domanda specifica (es. 'password WiFi', 'orari colazione', 'prezzo camera doppia')",
-                    },
-                  },
-                  required: ["query"],
-                },
-              },
-            ],
-            tool_choice: "auto",
           }),
         }
       );
@@ -140,6 +118,7 @@ app.post("/call", async (req, res) => {
       }
 
       console.log("✅ Chiamata accettata!");
+      console.log(resp);
 
       // const parsedBody = JSON.parse(body);
       let hotelId = null;

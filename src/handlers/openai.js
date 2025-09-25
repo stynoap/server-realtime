@@ -128,8 +128,8 @@ class OpenAIHandler {
       console.log(
         "🟢 Connesso a OpenAI Realtime WebSocket SIP TRUNK, dentro la open..."
       );
-      /*       console.log("📋 Invio configurazione sessione...");
-      this._sendSessionConfig(); */
+      console.log("📋 Invio configurazione sessione...");
+      this._sendSessionConfig();
 
       console.log("Dopo che ho configurato la sessione");
       /*       this.openaiWs.send(JSON.stringify(responseCreate)); */
