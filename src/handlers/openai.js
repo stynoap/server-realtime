@@ -73,9 +73,10 @@ class OpenAIHandler {
       this.openaiWs = new WebSocket(wssUrl, {
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          origin: "https://api.openai.com",
         },
       });
-    }, 500);
+    }, 1000);
     console.log(wssUrl);
     this._setupHandlersSIPTRUNK();
     console.log(this.openaiWs);
