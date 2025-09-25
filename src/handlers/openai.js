@@ -69,16 +69,18 @@ class OpenAIHandler {
     console.log("📋 URL WebSocket OpenAI:", wssUrl);
 
     console.log("🔌 Tentativo connessione WebSocket OpenAI...");
-    this.openaiWs = new WebSocket(wssUrl, {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        origin: "https://api.openai.com",
-      },
-    });
-    console.log(wssUrl);
-    this._setupHandlersSIPTRUNK();
-    console.log(this.openaiWs);
-    console.log("✅ Handler SIP TRUNK configurati");
+    setTimeout(() => {
+      this.openaiWs = new WebSocket(wssUrl, {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          origin: "https://api.openai.com",
+        },
+      });
+      console.log(wssUrl);
+      this._setupHandlersSIPTRUNK();
+      console.log(this.openaiWs);
+      console.log("✅ Handler SIP TRUNK configurati");
+    }, 1000);
   }
 
   /**
@@ -115,7 +117,6 @@ class OpenAIHandler {
 
   _setupHandlersSIPTRUNK() {
     const WELCOME_GREETING = "Thank you for calling, how can I help?";
-
     const responseCreate = {
       type: "response.create",
       response: {
@@ -460,7 +461,6 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
         /* Non supporta che gli metti modalities audio */
         const responseCreate = {
           type: "response.create",
-          modalities: ["audio"],
           response: {
             instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
           },
