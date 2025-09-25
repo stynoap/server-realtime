@@ -193,10 +193,13 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
       session: {
         type: "realtime",
         instructions: enhancedInstructions,
-        input_audio_format: "g711_ulaw",
-        output_audio_format: "g711_ulaw",
-        input_audio_transcription: {
-          model: "whisper-1",
+        audio: {
+          input: {
+            // Format must match actual audio received (G.711 μ-law from SIP)
+            transcription: {
+              model: "whisper-1", // GA format, not beta
+            },
+          },
         },
         turn_detection: {
           type: "server_vad",
