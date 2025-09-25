@@ -73,11 +73,10 @@ class OpenAIHandler {
       this.openaiWs = new WebSocket(wssUrl, {
         headers: {
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-          "OpenAI-Beta": "realtime=v1",
         },
       });
     }, 500);
-
+    console.log(wssUrl);
     this._setupHandlersSIPTRUNK();
     console.log(this.openaiWs);
     console.log("✅ Handler SIP TRUNK configurati");
