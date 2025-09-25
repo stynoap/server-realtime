@@ -93,13 +93,23 @@ class OpenAIHandler {
     };
     this.openaiWs.on("open", () => {
       console.log("🟢 Connesso a OpenAI Realtime WebSocket");
-      this.openaiWs.send(JSON.stringify(responseCreate));
+      //  this.openaiWs.send(JSON.stringify(responseCreate));
       /*     this._sendSessionConfig(instructions); */
     });
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
       /*     this._handleMessage(message); */
       console.log(message);
+      if (response.type === "session.updated") {
+        console.log("✅ Sessione configurata, invio saluto iniziale...");
+        const responseCreate = {
+          type: "response.create",
+          response: {
+            instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
+          },
+        };
+        this.openaiWs.send(JSON.stringify(responseCreate));
+      }
     });
 
     this.openaiWs.on("close", () => {
@@ -132,7 +142,7 @@ class OpenAIHandler {
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
       console.log("messaggio in arrivo");
-  /*     this._handleMessageSIPTRUNK(message); */
+      /*     this._handleMessageSIPTRUNK(message); */
     });
 
     this.openaiWs.on("close", (code, reason) => {

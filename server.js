@@ -100,7 +100,7 @@ app.post("/call", async (req, res) => {
           },
           body: JSON.stringify({
             instructions:
-              "Di al cliente: Pronto sono Rossana in cosa posso esserti utile?",
+              "Sei il receptionist di una struttura ricettiva, comportati in modo professionale e cortese con il cliente.",
             type: "realtime",
             model: "gpt-realtime",
             audio: {
@@ -118,11 +118,11 @@ app.post("/call", async (req, res) => {
 
       console.log("✅ Chiamata accettata!");
 
-     // const parsedBody = JSON.parse(body);
+      // const parsedBody = JSON.parse(body);
       let hotelId = null;
 
       /* Recupero il numero di telefono che sta venendo chiamato */
-     // const sipHeaders = parsedBody.data?.sip_headers;
+      // const sipHeaders = parsedBody.data?.sip_headers;
 
       /*       if (sipHeaders && Array.isArray(sipHeaders)) {
         for (const header of sipHeaders) {
