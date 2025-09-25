@@ -191,6 +191,7 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
     const sessionConfig = {
       type: "session.update",
       session: {
+        type: "realtime",
         modalities: ["text", "audio"],
         instructions: enhancedInstructions,
         voice: AI_CONFIG.voice,
