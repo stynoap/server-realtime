@@ -132,14 +132,10 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
           body: JSON.stringify({
             type: "realtime",
             instructions: enhancedInstructions,
-            model: "gpt-4o-realtime", // opzionale, ma consigliato per chiarezza
+            model: "gpt-realtime", // opzionale, ma consigliato per chiarezza
             output_modalities: ["audio"], // opzionale, default audio
             audio: {
               input: {
-                format: {
-                  type: "audio/pcm", // oppure "audio/g711_ulaw" se richiesto dal provider
-                  rate: 24000, // oppure 8000 per g711_ulaw
-                },
                 transcription: {
                   model: "whisper-1",
                 },
@@ -155,12 +151,7 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
                 },
               },
               output: {
-                format: {
-                  type: "audio/pcm", // oppure "audio/g711_ulaw"
-                  rate: 24000, // oppure 8000 per g711_ulaw
-                },
                 voice: "alloy",
-                speed: 1.0,
               },
             },
           }),
