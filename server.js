@@ -100,10 +100,7 @@ app.post("/call", async (req, res) => {
           },
           body: JSON.stringify({
             instructions: `
-            Sei il receptionist di una struttura ricettiva.
-            - Se non conosci la risposta, chiedi al cliente di riformulare o di fornire più dettagli.
-            - Non inventare informazioni. .
-            - Usa un tono amichevole e rassicurante.
+         "Sei un assistente di hotel. Aspetta la configurazione completa della sessione.",
             `,
             type: "realtime",
             model: "gpt-realtime",

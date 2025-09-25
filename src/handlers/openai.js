@@ -137,7 +137,7 @@ class OpenAIHandler {
       );
       // const response = JSON.parse(message.toString());
 
-      /*       if (response.type === "session.updated") {
+      if (response.type === "session.updated") {
         console.log("✅ Sessione configurata, invio saluto iniziale...");
         const responseCreate = {
           type: "response.create",
@@ -146,7 +146,7 @@ class OpenAIHandler {
           },
         };
         this.openaiWs.send(JSON.stringify(responseCreate));
-      } */
+      }
       this._handleMessageSIPTRUNK(message);
     });
 
@@ -164,16 +164,35 @@ class OpenAIHandler {
   /** Invia la configurazione della sessione a OpenAI */
   _sendSessionConfig(instructions = "") {
     console.log("avvio la configurazione della sessione");
-    const enhancedInstructions = `Sei un assistente virtuale di hotel. Rispondi in modo cortese e professionale in italiano.
+    const enhancedInstructions = `Sei un assistente virtuale di hotel. Rispondi come lingua di default in italiano altrimenti adattati alla lingua del cliente. Rispondi in modo cortese e professionale.
 
 COMPORTAMENTO INIZIALE: All'inizio della chiamata, saluta cordialmente il cliente con "Buongiorno, grazie per aver chiamato. Come posso aiutarla?"
 
-GESTIONE DELLE INFORMAZIONI:
-1. Se l'informazione richiesta è già presente nelle tue istruzioni iniziali (come saluti, informazioni di base, procedure standard), rispondi direttamente senza fare ricerche.
-2. USA la funzione search_knowledge_base SOLO quando l'utente chiede informazioni specifiche che NON sono nelle tue istruzioni (come dettagli sui servizi, prezzi, orari specifici, password WiFi, informazioni sui menu, etc.).
-3. Non fare ricerche inutili per informazioni generiche o già note dalle istruzioni.
+⚠️ REGOLE ASSOLUTE:
+1. NON CONOSCI informazioni specifiche di questo hotel come:
+   - Password WiFi
+   - Prezzi delle camere
+   - Orari dei servizi
+   - Menu del ristorante
+   - Dettagli sui servizi
 
-REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nelle istruzioni iniziali, fallo direttamente. Usa search_knowledge_base solo per informazioni dettagliate o specifiche non presenti nelle istruzioni.`;
+2. QUANDO l'utente chiede queste informazioni, devi OBBLIGATORIAMENTE:
+   - Dire: "Un momento, sto cercando l'informazione per lei"
+   - Usare la funzione search_knowledge_base
+   - NON inventare mai risposte
+
+3. ESEMPI di domande che RICHIEDONO SEMPRE search_knowledge_base:
+   - "Qual è la password del WiFi?" → search_knowledge_base
+   - "Quanto costa una camera?" → search_knowledge_base
+   - "Che orari ha il ristorante?" → search_knowledge_base
+
+4. Puoi rispondere direttamente SOLO per:
+   - Saluti ("Ciao", "Buongiorno")
+   - Ringraziamenti
+   - Richieste di ripetere
+   - Conversazione generica
+
+VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowledge_base.`;
 
     const sessionConfig = {
       type: "session.update",
