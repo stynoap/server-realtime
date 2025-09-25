@@ -201,6 +201,7 @@ REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nel
 
   /** Crea la configurazione dei tools per RAG */
   _createTools() {
+    console.log("✅ Configuro i tools per RAG");
     // Con RAG abbiamo sempre la funzione di ricerca disponibile
     return [
       {
@@ -449,10 +450,10 @@ REGOLA PRATICA: Se puoi rispondere con sicurezza usando solo le informazioni nel
       if (response.type === "session.updated") {
         console.log("✅ Sessione OpenAI configurata");
         console.log("✅ Sessione configurata, invio saluto iniziale...");
+        /* Non supporta che gli metti modalities audio */
         const responseCreate = {
           type: "response.create",
           response: {
-            modalities: ["audio"],
             instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
           },
         };

@@ -99,8 +99,8 @@ app.post("/call", async (req, res) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            instructions:
-              "Sei il receptionist di una struttura ricettiva, comportati in modo professionale e cortese con il cliente.",
+            instructions: `
+            Sei il receptionist di una struttura. Queste sono solo le istruzioni iniziali. Attendi la configurazione completa, e non inventare mai le risposte. Se non le sai, gentilmente, devi dirlo.  `,
             type: "realtime",
             model: "gpt-realtime",
             audio: {
