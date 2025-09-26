@@ -57,7 +57,7 @@ class FunctionCallHandlerRAG {
         let context = "";
         if (relevantDocs && relevantDocs.length > 0) {
           context = relevantDocs
-            .filter((doc) => doc.score > 0.7) // Filtra per relevance
+            .filter((doc) => doc.score > 0.6) // Filtra per relevance
             .slice(0, 3) // Max 3 risultati migliori
             .map((doc, index) => {
               return `${index + 1}. ${doc.text}`;
