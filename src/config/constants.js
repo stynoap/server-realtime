@@ -31,6 +31,8 @@ module.exports = {
 
   WEBHOOK_SECRET: "whsec_wBzlzmWdtmFj1jcTpznD9bP/XROvDpfM18BsTHLFaaQ=",
 
-  AWS_SERVER_URL: "https://b8cb12a01b18.ngrok-free.app/call",
-  ASK_ENDPOINT: "https://b8cb12a01b18.ngrok-free.app/ask",
+  AWS_SERVER_URL:
+    "https://qxsriq5390.execute-api.eu-south-1.amazonaws.com/stg/call",
+  ASK_ENDPOINT:
+    "https://qxsriq5390.execute-api.eu-south-1.amazonaws.com/stg/ask",
 };
