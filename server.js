@@ -94,7 +94,9 @@ app.post("/call", async (req, res) => {
   }
 
   console.log("numero di telefono chiamato:", receiving_telephone_number);
-  const url = `${base_api}voice_channel_info?phone_number=${receiving_telephone_number}`;
+  const url = `${base_api}voice_channel_info?phone_number=${encodeURIComponent(
+    receiving_telephone_number
+  )}`;
   const resp = await fetch(url, {
     method: "GET",
     headers: {
