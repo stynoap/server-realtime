@@ -440,21 +440,14 @@ class OpenAIHandler {
         }
       }
 
-      //Evento per gestire il salvataggio dei messaggi dell'utente
+      // tentativo recupero trascrizione audio del cliente
       if (
-        response.type === "conversation.item.added" &&
-        response.item &&
-        response.item.role === "user"
+        response.type ===
+        "conversation.item.input_audio_transcription.completed"
       ) {
-        console.log("👤 Utente ha detto (evento):", response.item);
-        console.log("👤 Dettagli evento:", response.item.content);
-        console.log(
-          "👤 Dettaglio content:",
-          response.item.content?.[0]?.text || ""
-        );
-        const userText = response.item.content?.[0]?.text || "";
+        console.log("👤 Utente ha detto (evento):", response);
+        const userText = response.transcript || "";
         if (userText.trim()) {
-          console.log("👤 Utente ha detto (testo):", userText);
           this.messages.push({
             text: userText.trim(),
             timestamp: Date.now(),
@@ -463,6 +456,8 @@ class OpenAIHandler {
           console.log("💾 Messaggio utente salvato:", userText.trim());
         }
       }
+      //Evento per gestire il salvataggio dei messaggi dell'utente
+
       // Risposta completata - fallback per salvare messaggi se necessario
 
       // Function call da OpenAI
