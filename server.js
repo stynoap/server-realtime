@@ -185,6 +185,9 @@ VIETATO:
             output_modalities: ["audio"],
             audio: {
               input: {
+                transcription: {
+                  model: "whisper-1", // GA format, not beta
+                },
                 format: {
                   type: "audio/g711_ulaw", // oppure "audio/pcm" se Twilio lo supporta
                   rate: 8000, // 8000 per g711_ulaw, 24000 per pcm
