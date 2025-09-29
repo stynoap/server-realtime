@@ -4,6 +4,7 @@ const {
   VAD_CONFIG,
   AI_CONFIG,
   AWS_SERVER_URL,
+  base_api,
 } = require("../config/constants");
 // 🚀 Usa il nuovo handler RAG veloce
 const FunctionCallHandlerRAG = require("./functionCallRAG");
@@ -678,9 +679,10 @@ class OpenAIHandler {
   }
 
   /* questo è il momento in cui chiudo la connessione */
+  //todo devo rivedere la close per la gestione dei salvataggi
   close() {
+    console.log("🔴 Chiusura connessione OpenAI...");
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
-      // 🚨 CONTROLLO FINALE: Salva qualsiasi messaggio rimasto in sospeso
       if (this.currentUserMessage.trim()) {
         console.log("⚠️ SALVATAGGIO FINALE: Messaggio utente in sospeso");
         this.messages.push({
@@ -728,7 +730,7 @@ class OpenAIHandler {
       });
 
       /* Invio messaggi al server AWS con gestione errori */
-      fetch(`${AWS_SERVER_URL}`, {
+      fetch(`${base_api}call`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -5,7 +5,7 @@ const http = require("http");
 const cors = require("cors");
 const WebSocket = require("ws");
 const TwilioHandler = require("./src/handlers/twilio");
-const { AWS_SERVER_URL, WEBHOOK_SECRET } = require("./src/config/constants");
+const { base_api } = require("./src/config/constants");
 const OpenAIHandler = require("./src/handlers/openai");
 
 const app = express();
@@ -70,49 +70,82 @@ server.listen(PORT, "0.0.0.0", () => {
 });
 
 app.post("/call", async (req, res) => {
-  const enhancedInstructions = `Sei un assistente virtuale di hotel. Rispondi come lingua di default in italiano altrimenti adattati alla lingua del cliente. Rispondi in modo cortese e professionale.
+  const body = req.body.toString("utf8");
+  const parsedBody = JSON.parse(body);
+  const sipHeaders = parsedBody.data?.sip_headers;
+  var receiving_telephone_number = null;
 
-COMPORTAMENTO INIZIALE: All'inizio della chiamata, saluta cordialmente il cliente con "Buongiorno, grazie per aver chiamato. Come posso aiutarla?"
+  // Estrai il numero di telefono chiamato dagli header SIP
+  if (sipHeaders && Array.isArray(sipHeaders)) {
+    for (const header of sipHeaders) {
+      if (header.name === "Diversion") {
+        const headerValue = header.value;
+        const startIndex = headerValue.indexOf("sip:") + 4;
+        const endIndex = headerValue.indexOf("@");
+        if (startIndex !== -1 && endIndex !== -1) {
+          receiving_telephone_number = headerValue.substring(
+            startIndex,
+            endIndex
+          );
+        }
+        break;
+      }
+    }
+  }
 
-REGOLE ASSOLUTE:
-1. NON CONOSCI informazioni specifiche di questo hotel come:
-   - Password WiFi
-   - Prezzi delle camere
-   - Orari dei servizi
-   - Menu del ristorante
-   - Dettagli sui servizi
+  console.log("numero di telefono chiamato:", receiving_telephone_number);
+  const url = `${base_api}voice_channel_info?phone_number=${receiving_telephone_number}`;
+  const resp = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
-2. QUANDO l'utente chiede queste informazioni, devi OBBLIGATORIAMENTE:
-   - Dire: "Un momento, sto cercando l'informazione per lei"
-   - Usare la funzione search_knowledge_base
-   - NON inventare mai risposte
+  const responseData = await resp.json();
+  const { instructions, quick_search_text, hotel_id } = responseData || {};
+  console.log(instructions, quick_search_text, hotel_id);
+  const enhancedInstructions = `Sei un assistente virtuale per un hotel. Descrizione: ${instructions}. Informazioni principali a cui fare riferimento: ${quick_search_text}.
 
-3. ESEMPI di domande che RICHIEDONO SEMPRE search_knowledge_base:
-   - "Qual è la password del WiFi?" → search_knowledge_base
-   - "Quanto costa una camera?" → search_knowledge_base
-   - "Che orari ha il ristorante?" → search_knowledge_base
+ISTRUZIONI INIZIALI: All'inizio della chiamata saluta cordialmente il cliente con: "Buongiorno, grazie per aver chiamato. Come posso aiutarla?"
 
-4. Puoi rispondere direttamente SOLO per:
-   - Saluti ("Ciao", "Buongiorno")
-   - Ringraziamenti
-   - Richieste di ripetere
-   - Conversazione generica
+REGOLE FONDAMENTALI:
+1) Informazioni iniziali sull'hotel (dati base):
+Queste informazioni sono quelle generiche presenti in ${quick_search_text} — ad esempio password WiFi, numeri di telefono, indirizzo e servizi principali. Per domande su questi elementi, consulta sempre ${quick_search_text} e rispondi solo con ciò che è fornito.
 
-VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowledge_base.`;
+2) QUANDO il cliente richiede queste informazioni, DEVI SEMPRE:
+- Fornire solo le informazioni contenute nei dati forniti.
+- Offrire ulteriore assistenza con "Posso aiutarla in altro?"
+- NON inventare risposte.
 
-  console.log("📞 Webhook ricevuto - ACCEPT IMMEDIATO");
+3) PER DOMANDE PIÙ SPECIFICHE O NON COPERTE DAI DATI DI BASE: usa la funzione search_knowledge_base
+- Rispondi inizialmente: "Un momento, sto cercando l'informazione per lei"
+- Invoca la funzione search_knowledge_base
+- NON inventare risposte
+
+4) RISPOSTE DIRETTE AMMESSE SOLO per:
+- Saluti ("Ciao", "Buongiorno")
+- Ringraziamenti
+- Richieste di ripetere
+- Conversazione generica
+
+VIETATO:
+- Inventare informazioni.
+- Fornire informazioni sensibili che NON sono presenti in ${quick_search_text}. Se un'informazione sensibile (es. password) è presente in ${quick_search_text}, puoi fornirla; altrimenti, usa search_knowledge_base o indica che non è disponibile.`;
+
+  console.log("Webhook ricevuto - ACCEPT IMMEDIATO");
 
   try {
-    const body = req.body.toString("utf8");
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const event = await client.webhooks.unwrap(
       body,
       req.headers,
       process.env.WEBHOOK_SECRET
     );
-    //ho da qui rimosso la webhook secret
 
     console.log(event);
+
+    // TODO: GESTIONE DIMANICA DELLE VOCI
 
     if (event.type === "realtime.call.incoming") {
       const callId = event?.data?.call_id;
@@ -132,8 +165,8 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
           body: JSON.stringify({
             type: "realtime",
             instructions: enhancedInstructions,
-            model: "gpt-realtime", // opzionale, ma consigliato per chiarezza
-            output_modalities: ["audio"], // opzionale, default audio
+            model: "gpt-realtime",
+            output_modalities: ["audio"],
             audio: {
               output: {
                 voice: "alloy",
@@ -150,36 +183,12 @@ VIETATO: Fornire password, prezzi, orari specifici senza aver usato search_knowl
       }
 
       console.log(resp, " la risposta dall'accept");
-
-      // const parsedBody = JSON.parse(body);
-      let hotelId = null;
-
-      /* Recupero il numero di telefono che sta venendo chiamato */
-      // const sipHeaders = parsedBody.data?.sip_headers;
-
-      /*       if (sipHeaders && Array.isArray(sipHeaders)) {
-        for (const header of sipHeaders) {
-          if (header.name === "Diversion") {
-            const headerValue = header.value;
-            const startIndex = headerValue.indexOf("sip:") + 4;
-            const endIndex = headerValue.indexOf("@");
-            if (startIndex !== -1 && endIndex !== -1) {
-              hotelId = headerValue.substring(startIndex, endIndex);
-            }
-            break;
-          }
-        }
-      }
-
-      console.log("🏨 Hotel ID:", hotelId); */
-      hotelId = "+17752433953";
-      // Connetti WebSocket - Mantieni riferimento per evitare garbage collection
       const wssUrl = `wss://api.openai.com/v1/realtime?call_id=${callId}`;
       const openAiHandler = new OpenAIHandler(null);
 
       console.log("🔗 Connessione immediata al WebSocket OpenAI...");
 
-      openAiHandler.connectOpenAISIPTRUNK(hotelId, wssUrl);
+      openAiHandler.connectOpenAISIPTRUNK(hotel_id, wssUrl);
 
       return res.sendStatus(200);
     } else {

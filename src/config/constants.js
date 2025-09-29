@@ -35,4 +35,5 @@ module.exports = {
     "https://qxsriq5390.execute-api.eu-south-1.amazonaws.com/stg/call",
   ASK_ENDPOINT:
     "https://qxsriq5390.execute-api.eu-south-1.amazonaws.com/stg/ask",
+  base_api: "https://qxsriq5390.execute-api.eu-south-1.amazonaws.com/stg/",
 };
