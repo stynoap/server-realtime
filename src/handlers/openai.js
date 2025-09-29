@@ -64,8 +64,15 @@ class OpenAIHandler {
     this._setupEventHandlers(instructions);
   }
 
-  connectOpenAISIPTRUNK(hotelId, wssUrl) {
+  connectOpenAISIPTRUNK(
+    hotelId,
+    wssUrl,
+    caller_number,
+    receiving_telephone_number
+  ) {
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
+    this.hotelCallNumber = receiving_telephone_number;
+    this.customerNumber = caller_number;
     console.log("🏨 Hotel ID impostato:", this.hotelId);
     console.log("📋 URL WebSocket OpenAI:", wssUrl);
 
@@ -117,13 +124,6 @@ class OpenAIHandler {
   }
 
   _setupHandlersSIPTRUNK() {
-    const WELCOME_GREETING = "Thank you for calling, how can I help?";
-    const responseCreate = {
-      type: "response.create",
-      response: {
-        instructions: `Di al cliente: Pronto sono Rossana in cosa posso esserti utile?`,
-      },
-    };
     // la connessione è stata stabilita
     this.openaiWs.on("open", () => {
       console.log(
@@ -133,7 +133,6 @@ class OpenAIHandler {
       this._sendSessionConfig();
 
       console.log("Dopo che ho configurato la sessione");
-      /*       this.openaiWs.send(JSON.stringify(responseCreate)); */
     });
     // questo è il momento in cui ricevo i messaggi da openai
     this.openaiWs.on("message", (message) => {
@@ -147,6 +146,7 @@ class OpenAIHandler {
 
     this.openaiWs.on("close", (code, reason) => {
       console.log(`🔴 OpenAI disconnesso - Code: ${code}, Reason: ${reason}`);
+      console.log(this.close());
       // Non chiamare this.close() automaticamente per evitare chiusure premature
       // Solo loggare per debug
     });
@@ -181,7 +181,7 @@ class OpenAIHandler {
         type: "function",
         name: "search_knowledge_base",
         description:
-          "Cerca informazioni dettagliate nella knowledge base aziendale usando il sistema RAG. Usa questa funzione SOLO quando l'utente chiede informazioni specifiche che NON sono presenti nelle istruzioni iniziali (come dettagli sui servizi, prezzi esatti, orari specifici, password WiFi, menu dettagliati, procedure specifiche). Non usarla per saluti o informazioni generiche già nelle istruzioni.",
+          "Cerca informazioni dettagliate nella knowledge base aziendale usando il sistema RAG. Usa questa funzione SOLO quando l'utente chiede informazioni specifiche che NON sono presenti nelle istruzioni iniziali che ti sono state passate (come dettagli sui servizi, prezzi esatti, orari specifici, password WiFi, menu dettagliati, procedure specifiche). Non usarla per saluti o informazioni generiche già nelle istruzioni.",
         parameters: {
           type: "object",
           properties: {
@@ -684,7 +684,6 @@ class OpenAIHandler {
     console.log("🔴 Chiusura connessione OpenAI...");
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
       if (this.currentUserMessage.trim()) {
-        console.log("⚠️ SALVATAGGIO FINALE: Messaggio utente in sospeso");
         this.messages.push({
           text: this.currentUserMessage.trim(),
           timestamp: Date.now(),
@@ -726,7 +725,6 @@ class OpenAIHandler {
       console.log("📞 Dati chiamata:", {
         customerNumber: this.customerNumber,
         hotelNumber: this.hotelCallNumber,
-        streamSid: this.streamSid,
       });
 
       /* Invio messaggi al server AWS con gestione errori */
@@ -738,9 +736,9 @@ class OpenAIHandler {
           "User-Agent": "TwilioRealtime/1.0",
         },
         body: JSON.stringify({
+          hotelId: this.hotelId,
           customerNumber: this.customerNumber,
           hotelNumber: this.hotelCallNumber,
-          streamSid: this.streamSid,
           messages: this.messages,
         }),
       })

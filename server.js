@@ -74,6 +74,8 @@ app.post("/call", async (req, res) => {
   const parsedBody = JSON.parse(body);
   const sipHeaders = parsedBody.data?.sip_headers;
   var receiving_telephone_number = null;
+  var caller_number = null;
+  console.log("SIP HEADERS:", sipHeaders);
 
   // Estrai il numero di telefono chiamato dagli header SIP
   if (sipHeaders && Array.isArray(sipHeaders)) {
@@ -90,10 +92,21 @@ app.post("/call", async (req, res) => {
         }
         break;
       }
+
+      if (header.name === "From") {
+        const headerValue = header.value;
+        const startIndex = headerValue.indexOf("sip:") + 4;
+        const endIndex = headerValue.indexOf("@");
+        if (startIndex !== -1 && endIndex !== -1) {
+          caller_number = headerValue.substring(startIndex, endIndex);
+        }
+        break;
+      }
     }
   }
 
   console.log("numero di telefono chiamato:", receiving_telephone_number);
+  console.log("numero di telefono chiamante:", caller_number);
   const url = `${base_api}voice_channel_info?phone_number=${encodeURIComponent(
     receiving_telephone_number
   )}`;
@@ -190,7 +203,12 @@ VIETATO:
 
       console.log("🔗 Connessione immediata al WebSocket OpenAI...");
 
-      openAiHandler.connectOpenAISIPTRUNK(hotel_id, wssUrl);
+      openAiHandler.connectOpenAISIPTRUNK(
+        hotel_id,
+        wssUrl,
+        caller_number,
+        receiving_telephone_number
+      );
 
       return res.sendStatus(200);
     } else {
