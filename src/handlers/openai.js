@@ -446,6 +446,12 @@ class OpenAIHandler {
         response.item &&
         response.item.role === "user"
       ) {
+        console.log("👤 Utente ha detto (evento):", response.item);
+        console.log("👤 Dettagli evento:", response.item.content);
+        console.log(
+          "👤 Dettaglio content:",
+          response.item.content?.[0]?.text || ""
+        );
         const userText = response.item.content?.[0]?.text || "";
         if (userText.trim()) {
           console.log("👤 Utente ha detto (testo):", userText);
