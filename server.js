@@ -184,7 +184,17 @@ VIETATO:
             model: "gpt-realtime",
             output_modalities: ["audio"],
             audio: {
+              input: {
+                format: {
+                  type: "audio/g711_ulaw", // oppure "audio/pcm" se Twilio lo supporta
+                  rate: 8000, // 8000 per g711_ulaw, 24000 per pcm
+                },
+              },
               output: {
+                format: {
+                  type: "audio/g711_ulaw",
+                  rate: 8000,
+                },
                 voice: "alloy",
               },
             },
