@@ -146,7 +146,7 @@ class OpenAIHandler {
 
     this.openaiWs.on("close", (code, reason) => {
       console.log(`🔴 OpenAI disconnesso - Code: ${code}, Reason: ${reason}`);
-      console.log(this.close());
+      this.close();
       // Non chiamare this.close() automaticamente per evitare chiusure premature
       // Solo loggare per debug
     });
@@ -680,7 +680,7 @@ class OpenAIHandler {
 
   /* questo è il momento in cui chiudo la connessione */
   //todo devo rivedere la close per la gestione dei salvataggi
-  close() {
+  async close() {
     console.log("🔴 Chiusura connessione OpenAI...");
     if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
       if (this.currentUserMessage.trim()) {
@@ -728,12 +728,10 @@ class OpenAIHandler {
       });
 
       /* Invio messaggi al server AWS con gestione errori */
-      fetch(`${base_api}call`, {
+      const response = await fetch(`${base_api}call`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true",
-          "User-Agent": "TwilioRealtime/1.0",
         },
         body: JSON.stringify({
           hotelId: this.hotelId,
