@@ -419,178 +419,47 @@ class OpenAIHandler {
         console.log("✅ Sessione OpenAI configurata");
         console.log("✅ Sessione configurata, invio saluto iniziale...");
         /* Non supporta che gli metti modalities audio */
-        const responseCreate = {
-          type: "response.create",
-          response: {
-            instructions: `Presentati al cliente basandoti sulle istruzioni che ti sono state fornite. `,
-          },
-        };
-        /* Da qua ho eliminato il setTimout */
-        this.openaiWs.send(JSON.stringify(responseCreate));
-        //salvo il messaggio di benvenuto
-
         return;
       }
       // Log di debug per tutti gli eventi (commentare in produzione)
       if (response.type && !response.type.includes("audio.delta")) {
         console.log(`🔍 Evento OpenAI: ${response.type}`);
       }
-
-      // Trascrizione dell'audio dell'utente in arrivo
-      if (
-        response.type ===
-        "conversation.item.input_audio_transcription.completed"
-      ) {
-        console.log("👤 Utente ha detto:", response.transcript);
-
-        // Se c'era già un messaggio utente non salvato, salvalo prima
-        if (this.currentUserMessage.trim()) {
-          console.log(
-            "⚠️ Messaggio utente precedente non salvato, lo salvo ora"
-          );
-          this.messages.push({
-            text: this.currentUserMessage.trim(),
-            timestamp: Date.now(),
-            role: "user",
-          });
-        }
-
-        this.currentUserMessage = response.transcript;
-        console.log("📝 Messaggio utente temporaneo salvato");
-      }
-
-      if (response.type === "response.text.delta") {
-        console.log("🤖 AI risponde (testo):", response.delta);
-        this.currentAssistantResponse += response.delta;
-      }
-
-      // Risposta text dell'AI completata - salva ENTRAMBI i messaggi in ordine
-      if (response.type === "response.text.done") {
-        if (this.currentAssistantResponse.trim()) {
-          // Prima salva il messaggio dell'utente
-          if (this.currentUserMessage.trim()) {
-            this.messages.push({
-              text: this.currentUserMessage.trim(),
-              timestamp: Date.now(),
-              role: "user",
-            });
-            console.log(
-              "💾 Messaggio utente salvato:",
-              this.currentUserMessage.trim()
-            );
-          }
-
-          // Poi salva la risposta dell'AI
-          this.messages.push({
-            text: this.currentAssistantResponse.trim(),
-            timestamp: Date.now(),
-            role: "assistant",
-          });
-          console.log(
-            "💾 Messaggio assistant salvato:",
-            this.currentAssistantResponse.trim()
-          );
-
-          // Reset
-          this.currentAssistantResponse = "";
-          this.currentUserMessage = "";
-        }
-      }
-
-      // Trascrizione dell'audio dell'AI completata - salva ENTRAMBI i messaggi
-      if (response.type === "response.audio_transcript.done") {
+      // Audio response dall'AI
+      if (response.type === "response.output_audio_transcript.done") {
+        //TODO: salvare il messaggio dell'AI
+        console.log("🤖 AI ha detto (audio):", response.transcript);
         const transcript = response.transcript;
         if (transcript && transcript.trim()) {
-          // Prima salva il messaggio dell'utente
-          if (this.currentUserMessage.trim()) {
-            this.messages.push({
-              text: this.currentUserMessage.trim(),
-              timestamp: Date.now(),
-              role: "user",
-            });
-            console.log(
-              "💾 Messaggio utente salvato:",
-              this.currentUserMessage.trim()
-            );
-          }
-
-          // Poi salva la risposta dell'AI
           this.messages.push({
             text: transcript.trim(),
             timestamp: Date.now(),
             role: "assistant",
           });
-          console.log(
-            "💾 Messaggio assistant salvato (audio):",
-            transcript.trim()
-          );
-
-          // Reset COMPLETO
-          this.currentUserMessage = "";
-          this.currentAssistantResponse = "";
+          console.log("💾 Messaggio assistant salvato:", transcript.trim());
         }
       }
 
-      // Risposta completata - fallback per salvare messaggi se necessario
-      if (response.type === "response.done") {
-        console.log("📋 Risposta AI completata");
-
-        // Caso 1: Abbiamo testo accumulato ma non salvato
-        if (this.currentAssistantResponse.trim()) {
-          // Prima salva il messaggio dell'utente
-          if (this.currentUserMessage.trim()) {
-            this.messages.push({
-              text: this.currentUserMessage.trim(),
-              timestamp: Date.now(),
-              role: "user",
-            });
-            console.log(
-              "💾 Messaggio utente salvato (fallback testo):",
-              this.currentUserMessage.trim()
-            );
-          }
-
-          // Poi salva la risposta dell'AI
+      //Evento per gestire il salvataggio dei messaggi dell'utente
+      if (
+        response.type === "conversation.item.added" &&
+        response.item &&
+        response.item.role === "user"
+      ) {
+        const userText = response.item.content?.[0]?.text || "";
+        if (userText.trim()) {
+          console.log("👤 Utente ha detto (testo):", userText);
           this.messages.push({
-            text: this.currentAssistantResponse.trim(),
-            timestamp: Date.now(),
-            role: "assistant",
-          });
-          console.log(
-            "💾 Messaggio assistant salvato (fallback testo):",
-            this.currentAssistantResponse.trim()
-          );
-
-          // Reset
-          this.currentAssistantResponse = "";
-          this.currentUserMessage = "";
-        }
-        // Caso 2: AI ha risposto solo con audio senza trascrizione
-        else if (this.currentUserMessage.trim()) {
-          console.log(" AI ha risposto con solo audio, salvo messaggio utente");
-          this.messages.push({
-            text: this.currentUserMessage.trim(),
+            text: userText.trim(),
             timestamp: Date.now(),
             role: "user",
           });
-          this.messages.push({
-            text: "[Risposta audio senza trascrizione]",
-            timestamp: Date.now(),
-            role: "assistant",
-          });
-          console.log("💾 Messaggio utente + risposta audio generica salvati");
-          this.currentUserMessage = "";
+          console.log("💾 Messaggio utente salvato:", userText.trim());
         }
+      }
+      // Risposta completata - fallback per salvare messaggi se necessario
 
-        // Log dello stato attuale
-        console.log(`📊 Totale messaggi: ${this.messages.length}`);
-        console.log(
-          "📋 Conversazione:",
-          this.messages
-            .slice(-4)
-            .map((m, i) => `${i + 1}. ${m.role}: ${m.text.substring(0, 30)}...`)
-        );
-      } // Function call da OpenAI
+      // Function call da OpenAI
       if (response.type === "response.function_call_arguments.done") {
         console.log("🔧 Function call RAG rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
