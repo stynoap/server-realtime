@@ -144,9 +144,9 @@ class OpenAIHandler {
       this._handleMessageSIPTRUNK(message);
     });
 
-    this.openaiWs.on("close", (code, reason) => {
+    this.openaiWs.on("close", async (code, reason) => {
       console.log(`🔴 OpenAI disconnesso - Code: ${code}, Reason: ${reason}`);
-      this.close();
+      await this.close();
       // Non chiamare this.close() automaticamente per evitare chiusure premature
       // Solo loggare per debug
     });
@@ -422,11 +422,12 @@ class OpenAIHandler {
         const responseCreate = {
           type: "response.create",
           response: {
-            instructions: `Di al cliente: Pronto sono Rossana, la receptionist dell'hotel, in cosa posso essere utile? `,
+            instructions: `Presentati al cliente basandoti sulle istruzioni che ti sono state fornite. `,
           },
         };
         /* Da qua ho eliminato il setTimout */
         this.openaiWs.send(JSON.stringify(responseCreate));
+        //salvo il messaggio di benvenuto
 
         return;
       }
@@ -682,27 +683,34 @@ class OpenAIHandler {
   //todo devo rivedere la close per la gestione dei salvataggi
   async close() {
     console.log("🔴 Chiusura connessione OpenAI...");
-    if (this.openaiWs && this.openaiWs.readyState === WebSocket.OPEN) {
+    console.log(
+      "i messaggi",
+      this.messages,
+      "totale dei messaggi",
+      this.messages.length
+    );
+    if (this.openaiWs) {
+      console.log("💾 Salvataggio finale messaggi...");
       if (this.currentUserMessage.trim()) {
         this.messages.push({
           text: this.currentUserMessage.trim(),
           timestamp: Date.now(),
           role: "user",
         });
-
-        // Se c'è anche una risposta AI in sospeso, salvala
-        if (this.currentAssistantResponse.trim()) {
-          this.messages.push({
-            text: this.currentAssistantResponse.trim(),
-            timestamp: Date.now(),
-            role: "assistant",
-          });
-          console.log(
-            "⚠️ SALVATAGGIO FINALE: Anche risposta AI in sospeso salvata"
-          );
-        }
-        console.log(" SALVATAGGIO FINALE completato");
       }
+
+      // Se c'è anche una risposta AI in sospeso, salvala
+      if (this.currentAssistantResponse.trim()) {
+        this.messages.push({
+          text: this.currentAssistantResponse.trim(),
+          timestamp: Date.now(),
+          role: "assistant",
+        });
+        console.log(
+          "⚠️ SALVATAGGIO FINALE: Anche risposta AI in sospeso salvata"
+        );
+      }
+      console.log(" SALVATAGGIO FINALE completato");
 
       // Ordina i messaggi definitivamente per timestamp e sequenza
       this.messages.sort((a, b) => {
