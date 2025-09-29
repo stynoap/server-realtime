@@ -76,11 +76,13 @@ app.post("/call", async (req, res) => {
   var receiving_telephone_number = null;
   var caller_number = null;
   console.log("SIP HEADERS:", sipHeaders);
+  console.log(parsedBody, "body parsato");
 
   // Estrai il numero di telefono chiamato dagli header SIP
   if (sipHeaders && Array.isArray(sipHeaders)) {
     for (const header of sipHeaders) {
       if (header.name === "Diversion") {
+        console.log(header.value, "header diversion");
         const headerValue = header.value;
         const startIndex = headerValue.indexOf("sip:") + 4;
         const endIndex = headerValue.indexOf("@");
@@ -90,17 +92,16 @@ app.post("/call", async (req, res) => {
             endIndex
           );
         }
-        break;
       }
 
       if (header.name === "From") {
+        console.log(header.value, "header from");
         const headerValue = header.value;
         const startIndex = headerValue.indexOf("sip:") + 4;
         const endIndex = headerValue.indexOf("@");
         if (startIndex !== -1 && endIndex !== -1) {
           caller_number = headerValue.substring(startIndex, endIndex);
         }
-        break;
       }
     }
   }
