@@ -445,6 +445,7 @@ class OpenAIHandler {
         response.type ===
         "conversation.item.input_audio_transcription.completed"
       ) {
+        console.log("dentro evento di trascrizione");
         console.log("👤 Utente ha detto (evento):", response);
         const userText = response.transcript || "";
         if (userText.trim()) {

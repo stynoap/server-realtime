@@ -198,7 +198,7 @@ VIETATO:
                   type: "audio/g711_ulaw",
                   rate: 8000,
                 },
-                voice: "alloy",
+                voice: "marin",
               },
             },
           }),
