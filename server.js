@@ -119,7 +119,8 @@ app.post("/call", async (req, res) => {
   });
 
   const responseData = await resp.json();
-  const { instructions, quick_search_text, hotel_id } = responseData || {};
+  const { instructions, quick_search_text, hotel_id, realtime_voice } =
+    responseData || {};
   console.log(instructions, quick_search_text, hotel_id);
   const enhancedInstructions = `Sei un assistente virtuale per un hotel. Descrizione: ${instructions}. Informazioni principali a cui fare riferimento: ${quick_search_text}.
 
@@ -198,7 +199,7 @@ VIETATO:
                   type: "audio/g711_ulaw",
                   rate: 8000,
                 },
-                voice: "marin",
+                voice: realtime_voice || "alloy", // voce di default se non specificata
               },
             },
           }),
