@@ -68,7 +68,8 @@ class OpenAIHandler {
     hotelId,
     wssUrl,
     caller_number,
-    receiving_telephone_number
+    receiving_telephone_number,
+    instructions = ""
   ) {
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
     this.hotelCallNumber = receiving_telephone_number;
@@ -85,7 +86,8 @@ class OpenAIHandler {
         },
       });
       console.log(wssUrl);
-      this._setupHandlersSIPTRUNK();
+      console.log(instructions, "le istruzioni che passo alla open");
+      this._setupHandlersSIPTRUNK(instructions);
       console.log(this.openaiWs);
       console.log("✅ Handler SIP TRUNK configurati");
     }, 1000);
@@ -123,7 +125,7 @@ class OpenAIHandler {
     });
   }
 
-  _setupHandlersSIPTRUNK() {
+  _setupHandlersSIPTRUNK(instructions = "") {
     // la connessione è stata stabilita
     this.openaiWs.on("open", () => {
       console.log(
@@ -141,7 +143,7 @@ class OpenAIHandler {
         JSON.parse(message.toString())
       );
 
-      this._handleMessageSIPTRUNK(message);
+      this._handleMessageSIPTRUNK(message, instructions);
     });
 
     this.openaiWs.on("close", async (code, reason) => {
@@ -409,7 +411,7 @@ class OpenAIHandler {
     }
   }
 
-  _handleMessageSIPTRUNK(message) {
+  _handleMessageSIPTRUNK(message, instructions = "") {
     try {
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
       const response = JSON.parse(message.toString());
@@ -424,7 +426,7 @@ class OpenAIHandler {
           JSON.stringify({
             type: "response.create",
             response: {
-              instructions: `Se ancora al cliente non ti sei presentto, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato e chiedi come puoi aiutarlo oggi.`,
+              instructions: `Se ancora al cliente non ti sei presentto, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato e chiedi come puoi aiutarlo oggi. Il contesto che devi usare per basare questa tua presentazione è il seguente: ${instructions}`,
             },
           })
         );
