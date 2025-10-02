@@ -162,8 +162,6 @@ VIETATO:
 
     console.log(event);
 
-    // TODO: GESTIONE DIMANICA DELLE VOCI
-
     if (event.type === "realtime.call.incoming") {
       const callId = event?.data?.call_id;
       console.log(`⚡ ACCEPT IMMEDIATO per: ${callId}`);

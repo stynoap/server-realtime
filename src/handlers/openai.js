@@ -418,6 +418,24 @@ class OpenAIHandler {
       if (response.type === "session.updated") {
         console.log("✅ Sessione OpenAI configurata");
         console.log("✅ Sessione configurata, invio saluto iniziale...");
+        // qua vorrei dirlgi di presentarsi, se già non lo ha fatto
+        const hour = new Date().getHours();
+        this.openaiWs.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions: `Se ancora al cliente non ti sei presentto, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato e chiedi come puoi aiutarlo oggi.`,
+            },
+          })
+        );
+
+        openaiWs.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {},
+          })
+        );
+        // Chiama il callback se disponibile (per il messaggio di benvenuto)
         /* Non supporta che gli metti modalities audio */
         return;
       }
@@ -656,14 +674,11 @@ class OpenAIHandler {
     let welcomeMessage;
 
     if (hour < 12) {
-      welcomeMessage =
-        "Buongiorno! Sono l'assistente virtuale. Come posso aiutarla oggi?";
+      welcomeMessage = "Buongiorno! Come posso aiutarla oggi?";
     } else if (hour < 18) {
-      welcomeMessage =
-        "Buon pomeriggio! Sono l'assistente virtuale. Come posso aiutarla oggi?";
+      welcomeMessage = "Buon pomeriggio! Come posso aiutarla oggi?";
     } else {
-      welcomeMessage =
-        "Buonasera! Sono l'assistente virtuale. Come posso aiutarla oggi?";
+      welcomeMessage = "Buonasera! Come posso aiutarla oggi?";
     }
 
     return welcomeMessage;
