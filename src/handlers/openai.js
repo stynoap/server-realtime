@@ -254,67 +254,120 @@ class OpenAIHandler {
 
   //funzione per la gestione di quando il cliente chiede di prenotare una camera
   async _handleReservationFunctionCall(response) {
+    console.log("dentro la funzione per la gestione della prenotazione");
     try {
-      const args = JSON.parse(response.arguments); // I parametri passati da OpenAI
-      console.log("📋 Dettagli prenotazione:", args);
-
-      // Logica per gestire la prenotazione (es. salva in DB, invia email, ecc.)
-      // Puoi integrare qui una chiamata API al tuo backend per confermare la prenotazione
-      const reservationDetails = {
-        type: args.reservation_type,
-        date: args.date,
-        time: args.time || null,
-        guests: args.guests || 1,
-        notes: args.notes || "",
-        customerNumber: this.customerNumber,
-        hotelId: this.hotelId,
-      };
-
-      // Esempio: Simula una risposta positiva (sostituisci con logica reale)
-      const confirmationMessage = `La tua prenotazione è stata registrata e comunicata all'hotel per ${reservationDetails.type} il ${reservationDetails.date}. Grazie! Verrai presto ricontattato da un operatore umano per finalizzare la prenotazione.`;
-      const prenotazioneEndpoint = `${AWS_SERVER_URL}/prenotazione`;
-      const prenotazioneInsertStatus = await fetch(prenotazioneEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          prenotazione: reservationDetails,
-          hotelId: hotelId,
-        }),
-      });
-
-      if (
-        !prenotazioneInsertStatus.status ||
-        prenotazioneInsertStatus.status !== 200
-      ) {
-        confirmationMessage =
-          "C'è stato un problema con la registrazione della tua prenotazione. Riprova più tardi.";
+      // Parse e validazione argomenti
+      let args;
+      try {
+        args = JSON.parse(response.arguments);
+      } catch (err) {
+        console.error("Errore parsing argomenti prenotazione:", err);
+        return ws.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              instructions:
+                "Non sono riuscito a leggere i dettagli della prenotazione. Puoi ripetere?",
+            },
+          })
+        );
       }
 
-      this.openaiWs.send(
-        JSON.stringify({
-          type: "conversation.item.create",
-          item: {
-            type: "function_call_output",
-            call_id: response.call_id,
-            output: JSON.stringify({ message: confirmationMessage }),
-          },
-        })
-      );
+      const {
+        reservation_type,
+        date,
+        time,
+        customer_name,
+        customer_surname,
+        customer_email,
+        notes,
+      } = args;
 
+      if (
+        !reservation_type ||
+        !date ||
+        !time ||
+        !customer_name ||
+        !customer_surname ||
+        !customer_email
+      ) {
+        return ws.send(
+          JSON.stringify({
+            type: "response.create",
+            response: {
+              conversation: conversation.id,
+              metadata: response.metadata,
+              instructions:
+                "Mancano alcuni dati obbligatori per la prenotazione. Controlla e riprova.",
+            },
+          })
+        );
+      }
+
+      const prenotazione = {
+        reservation_type,
+        date,
+        time,
+        customer_name,
+        customer_surname,
+        customer_email,
+        notes: notes || null,
+      };
+
+      // Invio al tuo servizio backend
+      let confirmationMessage = `La tua prenotazione è stata registrata con successo! 🎉
+Dettagli:
+- Tipo: ${reservation_type}
+- Data: ${date}
+- Ora: ${time}
+- Nome: ${customer_name} ${customer_surname}
+- Email: ${customer_email}
+${notes ? "- Note: " + notes : ""}`;
+
+      try {
+        const prenotazioneInsertStatus = await fetch(
+          `https://90392a5c5ef6.ngrok-free.app/prenotazione`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(prenotazione),
+          }
+        );
+
+        if (!prenotazioneInsertStatus.ok) {
+          confirmationMessage =
+            "C'è stato un problema nel salvataggio della prenotazione. Riprova più tardi.";
+        }
+      } catch (err) {
+        console.error("Errore nella chiamata al servizio prenotazione:", err);
+        confirmationMessage =
+          "Errore di connessione al servizio prenotazioni. Riprova più tardi.";
+      }
+
+      // Risposta all'assistente
       this.openaiWs.send(
         JSON.stringify({
           type: "response.create",
           response: {
-            instructions: `Comunica al cliente: "${confirmationMessage}"`,
+            conversation: conversation.id,
+            metadata: response.metadata,
+            instructions: confirmationMessage,
           },
         })
       );
-    } catch (error) {
-      console.error("❌ Errore nella gestione prenotazione:", error);
-      // Gestisci errori (es. invia messaggio di errore all'AI)
+    } catch (err) {
+      console.error("Errore in _handleReservationFunctionCall:", err);
+      this.openaiWs.send(
+        JSON.stringify({
+          type: "response.create",
+          response: {
+            conversation: conversation.id,
+            metadata: response.metadata,
+            instructions:
+              "Si è verificato un errore interno durante la gestione della prenotazione.",
+          },
+        })
+      );
     }
   }
 
@@ -603,6 +656,10 @@ class OpenAIHandler {
 
       // Function call da OpenAI
       if (response.type === "response.function_call_arguments.done") {
+        console.log(
+          "dentro l'evento che gestisce il lancio degli eventi",
+          response.name
+        );
         if (response.name == "make_reservation") {
           console.log("evento di tipo make reservation");
           this._handleReservationFunctionCall(response);
