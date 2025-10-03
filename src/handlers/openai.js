@@ -266,7 +266,7 @@ class OpenAIHandler {
         args = JSON.parse(response.arguments);
       } catch (err) {
         console.error("Errore parsing argomenti prenotazione:", err);
-        return ws.send(
+        return this.openaiWs.send(
           JSON.stringify({
             type: "response.create",
             response: {
@@ -295,12 +295,10 @@ class OpenAIHandler {
         !customer_surname ||
         !customer_email
       ) {
-        return ws.send(
+        return this.openaiWs.send(
           JSON.stringify({
             type: "response.create",
             response: {
-              conversation: conversation.id,
-              metadata: response.metadata,
               instructions:
                 "Mancano alcuni dati obbligatori per la prenotazione. Controlla e riprova.",
             },
@@ -330,6 +328,7 @@ Dettagli:
 - Email: ${customer_email}
 ${notes ? "- Note: " + notes : ""}`;
 
+      console.log("Dettagli prenotazione:", prenotazione);
       try {
         const prenotazioneInsertStatus = await fetch(
           `https://90392a5c5ef6.ngrok-free.app/prenotazione`,
@@ -356,8 +355,6 @@ ${notes ? "- Note: " + notes : ""}`;
         JSON.stringify({
           type: "response.create",
           response: {
-            conversation: conversation.id,
-            metadata: response.metadata,
             instructions: confirmationMessage,
           },
         })
@@ -368,8 +365,6 @@ ${notes ? "- Note: " + notes : ""}`;
         JSON.stringify({
           type: "response.create",
           response: {
-            conversation: conversation.id,
-            metadata: response.metadata,
             instructions:
               "Si è verificato un errore interno durante la gestione della prenotazione.",
           },
