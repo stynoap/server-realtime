@@ -69,6 +69,8 @@ server.listen(PORT, "0.0.0.0", () => {
   // Funzione di test per chiamata HTTP
 });
 
+//TODO gestire il benvenuto, deve dirmi che è un assistente virtuale dell'hotel x e che può parlarmi normalmente come farebbe con una persona
+// TODO aggiungere funzione che quando mi vengono fatte domande relative alle prenotazioni allora si occupa di raccogliere informazioni quali nome, cognome, email e numero di telefono che verranno salvate nel database e a quel punto sanranno segnalate nella conversazione
 app.post("/call", async (req, res) => {
   const body = req.body.toString("utf8");
   const parsedBody = JSON.parse(body);

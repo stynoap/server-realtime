@@ -196,8 +196,128 @@ class OpenAIHandler {
           required: ["query"],
         },
       },
+      // 🆕 NUOVA FUNZIONE PER PRENOTAZIONI
+      {
+        type: "function",
+        name: "make_reservation",
+        description:
+          "Gestisce richieste di prenotazione da parte del cliente. Usa questa funzione quando l'utente chiede di prenotare una camera, un tavolo, un servizio o qualsiasi altra prenotazione. A questo punto ti devi occupare di chiedere al cliente il suo nome, cognome, email, tipo di servizio che richiede e giorno e ora della prenotazione. Chiedi anche se ci sono altre informazioni aggiuntive che vuole aggiungere alla sua prenotazione. Raccogli questi dati e comunica al cliente che verrà ricontattato da un operatore umano per la finalizzazione della sua prenotazione. A questo punto lancia la funzione con i parametri raccolti.",
+        parameters: {
+          type: "object",
+          properties: {
+            reservation_type: {
+              type: "string",
+              description:
+                "Tipo di prenotazione (es: 'camera', 'tavolo ristorante', 'servizio spa')",
+            },
+            customer_name: {
+              type: "string",
+              description: "Nome del cliente",
+            },
+            customer_surname: {
+              type: "string",
+              description: "Cognome del cliente",
+            },
+            customer_email: {
+              type: "string",
+              description: "Email del cliente",
+            },
+
+            date: {
+              type: "string",
+              description: "Data della prenotazione (formato YYYY-MM-DD)",
+            },
+            time: {
+              type: "string",
+              description:
+                "Orario della prenotazione (se applicabile, formato HH:MM)",
+            },
+            notes: {
+              type: "string",
+              description:
+                "Note aggiuntive del cliente (es: preferenze speciali)",
+            },
+          },
+          required: [
+            "reservation_type",
+            "date",
+            "time",
+            "customer_name",
+            "customer_surname",
+            "customer_email",
+            "notes",
+          ],
+        },
+      },
     ];
   } /** Gestisce i messaggi da OpenAI */
+
+  //funzione per la gestione di quando il cliente chiede di prenotare una camera
+  async _handleReservationFunctionCall(response) {
+    try {
+      const args = JSON.parse(response.arguments); // I parametri passati da OpenAI
+      console.log("📋 Dettagli prenotazione:", args);
+
+      // Logica per gestire la prenotazione (es. salva in DB, invia email, ecc.)
+      // Puoi integrare qui una chiamata API al tuo backend per confermare la prenotazione
+      const reservationDetails = {
+        type: args.reservation_type,
+        date: args.date,
+        time: args.time || null,
+        guests: args.guests || 1,
+        notes: args.notes || "",
+        customerNumber: this.customerNumber,
+        hotelId: this.hotelId,
+      };
+
+      // Esempio: Simula una risposta positiva (sostituisci con logica reale)
+      const confirmationMessage = `La tua prenotazione è stata registrata e comunicata all'hotel per ${reservationDetails.type} il ${reservationDetails.date}. Grazie! Verrai presto ricontattato da un operatore umano per finalizzare la prenotazione.`;
+      const prenotazioneEndpoint = `${AWS_SERVER_URL}/prenotazione`;
+      const prenotazioneInsertStatus = await fetch(prenotazioneEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          prenotazione: reservationDetails,
+          hotelId: hotelId,
+        }),
+      });
+
+      if (
+        !prenotazioneInsertStatus.status ||
+        prenotazioneInsertStatus.status !== 200
+      ) {
+        confirmationMessage =
+          "C'è stato un problema con la registrazione della tua prenotazione. Riprova più tardi.";
+      }
+
+      this.openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: response.call_id,
+            output: JSON.stringify({ message: confirmationMessage }),
+          },
+        })
+      );
+
+      this.openaiWs.send(
+        JSON.stringify({
+          type: "response.create",
+          response: {
+            instructions: `Comunica al cliente: "${confirmationMessage}"`,
+          },
+        })
+      );
+    } catch (error) {
+      console.error("❌ Errore nella gestione prenotazione:", error);
+      // Gestisci errori (es. invia messaggio di errore all'AI)
+    }
+  }
+
   _handleMessage(message) {
     try {
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
@@ -426,7 +546,7 @@ class OpenAIHandler {
           JSON.stringify({
             type: "response.create",
             response: {
-              instructions: `Se ancora al cliente non ti sei presentto, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato e chiedi come puoi aiutarlo oggi. Il contesto che devi usare per basare questa tua presentazione è il seguente: ${instructions}`,
+              instructions: `Se ancora al cliente non ti sei presentato, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato, dicendo che sei l'assistente virtuale della struttura e che può parlarti normalmente come farebbe con una persona e chiedi poi come puoi aiutarlo. Il contesto che devi usare per basare questa tua presentazione è il seguente: ${instructions}`,
             },
           })
         );
@@ -483,6 +603,11 @@ class OpenAIHandler {
 
       // Function call da OpenAI
       if (response.type === "response.function_call_arguments.done") {
+        if (response.name == "make_reservation") {
+          console.log("evento di tipo make reservation");
+          this._handleReservationFunctionCall(response);
+          return;
+        }
         console.log("🔧 Function call RAG rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
           response,
