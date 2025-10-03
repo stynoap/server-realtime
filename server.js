@@ -10,6 +10,39 @@ const OpenAIHandler = require("./src/handlers/openai");
 
 const app = express();
 const server = http.createServer(app);
+/* 
+ reservation_type: {
+              type: "string",
+              description:
+                "Tipo di prenotazione (es: 'camera', 'tavolo ristorante', 'servizio spa')",
+            },
+            customer_name: {
+              type: "string",
+              description: "Nome del cliente",
+            },
+            customer_surname: {
+              type: "string",
+              description: "Cognome del cliente",
+            },
+            customer_email: {
+              type: "string",
+              description: "Email del cliente",
+            },
+
+            date: {
+              type: "string",
+              description: "Data della prenotazione (formato YYYY-MM-DD)",
+            },
+            time: {
+              type: "string",
+              description:
+                "Orario della prenotazione (se applicabile, formato HH:MM)",
+            },
+            notes: {
+              type: "string",
+              description:
+                "Note aggiuntive del cliente (es: preferenze speciali)",
+            }, */
 
 // CORS middleware
 app.use(
@@ -142,7 +175,20 @@ Queste informazioni sono quelle generiche presenti in ${quick_search_text} — a
 - Invoca la funzione search_knowledge_base
 - NON inventare risposte
 
-4) RISPOSTE DIRETTE AMMESSE SOLO per:
+4) PER RICHIESTE DI PRENOTAZIONE:
+- Raccogli le seguenti informazioni se non sono già state fornite, e richiedile gentilmente se mancano. Ricordati di fare un riepilogo al cliente ogni tanto per avere conferma che i dati che hai raccolto sono corretti. Quando al cliente ripeti la mail devi usare la parola 'chiocciola' e non 'at' in inglese, a meno che la conversazione non sia in inglese. Quando le chiedi chiedile poco per volte e facendo un riassunto di quello che hai capito fino a quel momento:
+- Nome e cognome
+- Data del giorno in cui si vuole il servizio 
+- Tipo di servizio
+- Orario di arrivo
+- Email
+- Conferma i dettagli con il cliente prima di procedere
+- Informa il cliente che riceverà una conferma via email
+- Dopo aver raccolto tutte le informazioni, invoca la funzione make_reservation con i dettagli raccolti.
+- Rispondi con: "La sua prenotazione è in corso. Riceverà una conferma a breve. Posso aiutarla in altro?"
+- dopo che sono stati raccolti i dati bisogna assicurarsi che ci siano tutti quelli legati alla prenotazione (nome, cognome, email, data, orario, tipo di servizio) e mandare la funzione make_reservation;
+
+5) RISPOSTE DIRETTE AMMESSE SOLO per:
 - Saluti ("Ciao", "Buongiorno")
 - Ringraziamenti
 - Richieste di ripetere

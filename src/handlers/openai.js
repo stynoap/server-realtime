@@ -205,7 +205,7 @@ class OpenAIHandler {
         type: "function",
         name: "make_reservation",
         description:
-          "Gestisce richieste di prenotazione da parte del cliente. Usa questa funzione quando l'utente chiede di prenotare una camera, un tavolo, un servizio o qualsiasi altra prenotazione. A questo punto ti devi occupare di chiedere al cliente il suo nome, cognome, email, tipo di servizio che richiede e giorno e ora della prenotazione. Quando chiedi le informazioni al cliente non chiederle tutte insieme ma una alla volta. Ricordati di fare un riepilogo al cliente ogni tanto per avere conferma che i dati che hai raccolto sono corretti. Quando al cliente ripeti la mail devi usare la parola 'chiocciola' e non 'at' in inglese, a meno che la conversazione non sia in inglese. Chiedi anche se ci sono altre informazioni aggiuntive che vuole aggiungere alla sua prenotazione. A questo punto, appena hai tutti i dati, lancia la funzione con i parametri raccolti e avvisa il cliente che stai mandando la richiesta di prenotazione. Questo è il momento in cui lancerai effettivamente l'evento 'make_reservation' con i parametri raccolti.",
+          "Gestisce richieste di prenotazione da parte del cliente. Questa funzione verrà lanciata dopo che l'utente ha chiesto una prenotazione e saranno raccolti i dati. Assicurati di avere queste info: nome, cognome, email, tipo di servizio che richiede e giorno e ora della prenotazione. A questo punto, appena hai tutti i dati, lancia la funzione con i parametri raccolti e avvisa il cliente che stai mandando la richiesta di prenotazione. La prenotazione si considera inviata solo quando viene chiamata la funzione make_reservation. NON dare conferme testuali al cliente senza averla inviata. Mandare la make_reservation è estremamente importante.",
         parameters: {
           type: "object",
           properties: {
@@ -351,12 +351,20 @@ ${notes ? "- Note: " + notes : ""}`;
 
       this.hasReservation = true;
       // Risposta all'assistente
-      this.openaiWs.send(
+      openaiWs.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "function_call_output",
+            call_id: callId,
+            output: confirmationMessage,
+          },
+        })
+      );
+      openaiWs.send(
         JSON.stringify({
           type: "response.create",
-          response: {
-            instructions: confirmationMessage,
-          },
+          response: {},
         })
       );
     } catch (err) {
