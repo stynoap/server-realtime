@@ -22,6 +22,8 @@ class OpenAIHandler {
     this.messages = [];
     this.currentAssistantResponse = "";
     this.currentUserMessage = "";
+    this.callId = "";
+    this.hasReservation = false;
   }
   /** Connette a OpenAI Realtime WebSocket */
   connect(callParameters, onReady = null) {
@@ -69,8 +71,10 @@ class OpenAIHandler {
     wssUrl,
     caller_number,
     receiving_telephone_number,
+    callId,
     instructions = ""
   ) {
+    this.callId = callId;
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
     this.hotelCallNumber = receiving_telephone_number;
     this.customerNumber = caller_number;
@@ -312,6 +316,8 @@ class OpenAIHandler {
         customer_surname,
         customer_email,
         notes: notes || null,
+        hotel_id: this.hotelId,
+        callId: this.callId,
       };
 
       // Invio al tuo servizio backend
@@ -344,6 +350,7 @@ ${notes ? "- Note: " + notes : ""}`;
           "Errore di connessione al servizio prenotazioni. Riprova più tardi.";
       }
 
+      this.hasReservation = true;
       // Risposta all'assistente
       this.openaiWs.send(
         JSON.stringify({
@@ -819,6 +826,8 @@ ${notes ? "- Note: " + notes : ""}`;
           customerNumber: this.customerNumber,
           hotelNumber: this.hotelCallNumber,
           messages: this.messages,
+          callId: this.callId,
+          hasReservation: this.hasReservation,
         }),
       })
         .then((response) => {
