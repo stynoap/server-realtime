@@ -205,7 +205,7 @@ class OpenAIHandler {
         type: "function",
         name: "make_reservation",
         description:
-          "Gestisce richieste di prenotazione da parte del cliente. Usa questa funzione quando l'utente chiede di prenotare una camera, un tavolo, un servizio o qualsiasi altra prenotazione. A questo punto ti devi occupare di chiedere al cliente il suo nome, cognome, email, tipo di servizio che richiede e giorno e ora della prenotazione. Chiedi anche se ci sono altre informazioni aggiuntive che vuole aggiungere alla sua prenotazione. Raccogli questi dati e comunica al cliente che verrà ricontattato da un operatore umano per la finalizzazione della sua prenotazione. A questo punto lancia la funzione con i parametri raccolti.",
+          "Gestisce richieste di prenotazione da parte del cliente. Usa questa funzione quando l'utente chiede di prenotare una camera, un tavolo, un servizio o qualsiasi altra prenotazione. A questo punto ti devi occupare di chiedere al cliente il suo nome, cognome, email, tipo di servizio che richiede e giorno e ora della prenotazione. Chiedi anche se ci sono altre informazioni aggiuntive che vuole aggiungere alla sua prenotazione. A questo punto, appena hai tutti i dati, lancia la funzione con i parametri raccolti e avvisa il cliente che stai mandando la richiesta di prenotazione. Questo è il momento in cui lancerai effettivamente l'evento 'make_reservation' con i parametri raccolti.",
         parameters: {
           type: "object",
           properties: {
