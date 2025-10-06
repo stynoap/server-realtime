@@ -205,7 +205,7 @@ class OpenAIHandler {
         type: "function",
         name: "make_reservation",
         description:
-          "Gestisce richieste di prenotazione da parte del cliente. Questa funzione verrà lanciata dopo che l'utente ha chiesto una prenotazione e saranno raccolti i dati. Assicurati di avere queste info: nome, cognome, email, tipo di servizio che richiede e giorno e ora della prenotazione. A questo punto, appena hai tutti i dati, lancia la funzione con i parametri raccolti e avvisa il cliente che stai mandando la richiesta di prenotazione. La prenotazione si considera inviata solo quando viene chiamata la funzione make_reservation. NON dare conferme testuali al cliente senza averla inviata. Mandare la make_reservation è estremamente importante.",
+          "Crea una prenotazione per il cliente quando ha richiesto un servizio e tutti i dati necessari sono stati raccolti.",
         parameters: {
           type: "object",
           properties: {
@@ -249,7 +249,6 @@ class OpenAIHandler {
             "customer_name",
             "customer_surname",
             "customer_email",
-            "notes",
           ],
         },
       },
@@ -331,7 +330,7 @@ ${notes ? "- Note: " + notes : ""}`;
       console.log("Dettagli prenotazione:", prenotazione);
       try {
         const prenotazioneInsertStatus = await fetch(
-          `https://90392a5c5ef6.ngrok-free.app/prenotazione`,
+          `https://4524c9a9269c.ngrok-free.app/prenotazione`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
