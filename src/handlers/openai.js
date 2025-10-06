@@ -365,6 +365,11 @@ ${
         if (!prenotazioneInsertStatus.ok) {
           confirmationMessage =
             "C'è stato un problema nel salvataggio della prenotazione. Riprova più tardi.";
+        } else {
+          await this.sendReservationConfirmation(
+            confirmationMessage,
+            customer_email
+          );
         }
       } catch (err) {
         console.error("Errore nella chiamata al servizio prenotazione:", err);
@@ -390,7 +395,6 @@ ${
           response: {},
         })
       );
-      await this.sendReservationConfirmation(confirmationMessage);
     } catch (err) {
       console.error("Errore in _handleReservationFunctionCall:", err);
       this.openaiWs.send(
@@ -955,7 +959,8 @@ ${
     return welcomeMessage;
   }
 
-  async sendReservationConfirmation(confirmationMessage) {
+  async sendReservationConfirmation(confirmationMessage, customer_email) {
+    console.log("dentro la funzione di invio della email");
     var transport = nodemailer.createTransport({
       host: "sandbox.smtp.mailtrap.io",
       port: 2525,
