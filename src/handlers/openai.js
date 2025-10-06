@@ -256,7 +256,7 @@ class OpenAIHandler {
           ],
         },
       },
-      {
+      /* {
         type: "function",
         name: "end_call",
         description:
@@ -271,19 +271,11 @@ class OpenAIHandler {
           },
           required: ["reason"],
         },
-      },
+      }, */
     ];
   } /** Gestisce i messaggi da OpenAI */
 
-  async handleEndCallFunctionCall(response) {
-    console.log("dentro la funzione per la gestione della fine della chiamata");
-    const args = JSON.parse(response.arguments);
-    const reason =
-      args.reason || "Chiusura della chiamata su richiesta del cliente";
-    console.log("Motivo della chiusura:", reason);
-    await this.close();
-    await this.hang;
-  }
+  async handleEndCallFunctionCall(response) {}
 
   //funzione per la gestione di quando il cliente chiede di prenotare una camera
   async _handleReservationFunctionCall(response) {
@@ -360,7 +352,7 @@ ${notes ? "- Note: " + notes : ""}`;
       console.log("Dettagli prenotazione:", prenotazione);
       try {
         const prenotazioneInsertStatus = await fetch(
-          `https://4524c9a9269c.ngrok-free.app/prenotazione`,
+          `${base_api}prenotazione`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -704,10 +696,6 @@ ${notes ? "- Note: " + notes : ""}`;
           this._handleReservationFunctionCall(response);
           return;
         }
-        if (response.name == "end_call") {
-          this.handleEndCallFunctionCall(response);
-          return;
-        }
         console.log("🔧 Function call RAG rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
           response,
@@ -900,6 +888,8 @@ ${notes ? "- Note: " + notes : ""}`;
     console.log("🔴 Chiusura chiamata Twilio...");
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
+    console.log("Account SID:", accountSid);
+    console.log("Auth Token presente:", authToken);
 
     const callSid = this.twilioCallSid;
     console.log("Chiusura chiamata Twilio, Call SID:", callSid);
@@ -911,6 +901,7 @@ ${notes ? "- Note: " + notes : ""}`;
     }
 
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
+    console.log(url);
 
     const params = new URLSearchParams();
     params.append("Status", "completed"); // imposta la chiamata come terminata

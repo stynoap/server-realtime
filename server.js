@@ -7,6 +7,8 @@ const WebSocket = require("ws");
 const TwilioHandler = require("./src/handlers/twilio");
 const { base_api } = require("./src/config/constants");
 const OpenAIHandler = require("./src/handlers/openai");
+const Srf = require("drachtio-srf");
+const srf = new Srf();
 
 const app = express();
 const server = http.createServer(app);
@@ -249,10 +251,6 @@ PRENOTAZIONI:
 RISPONDI DIRETTAMENTE SOLO A:
 - Saluti, ringraziamenti, richieste di ripetere, conversazione generica.  
 
-FINE DELLA CHIAMATA: 
-- Quando il cliente saluta per concludere e ti sei assicurato che non serva altro, rispondi con: "Grazie per aver chiamato. Le auguro una buona giornata."
-- Quindi invoca la funzione "end_call" per terminare la chiamata.
-
 VIETATO:
 - Inventare informazioni non presenti.  
 - Dare conferme di prenotazione senza usare "make_reservation".
@@ -347,6 +345,7 @@ VIETATO:
   }
 });
 
+/* Creare endpoint SIP */
 // Gestione errori globali
 process.on("uncaughtException", (error) => {
   console.error("💥 Errore non gestito:", error);
