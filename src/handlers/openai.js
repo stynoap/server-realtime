@@ -341,13 +341,15 @@ class OpenAIHandler {
 
       // Invio al tuo servizio backend
       let confirmationMessage = `La tua prenotazione è stata registrata con successo! 🎉
-Dettagli:
+Ecco i dettaglio della tua prenotazione:
 - Tipo: ${reservation_type}
 - Data: ${date}
 - Ora: ${time}
 - Nome: ${customer_name} ${customer_surname}
 - Email: ${customer_email}
-${notes ? "- Note: " + notes : ""}`;
+${
+  notes ? "- Note: " + notes : ""
+} Se noti degli errori, ti preghiamo di contattarci. Grazie per aver scelto Moka!`;
 
       console.log("Dettagli prenotazione:", prenotazione);
       try {
@@ -388,6 +390,7 @@ ${notes ? "- Note: " + notes : ""}`;
           response: {},
         })
       );
+      await this.sendReservationConfirmation(confirmationMessage);
     } catch (err) {
       console.error("Errore in _handleReservationFunctionCall:", err);
       this.openaiWs.send(
@@ -950,6 +953,26 @@ ${notes ? "- Note: " + notes : ""}`;
     }
 
     return welcomeMessage;
+  }
+
+  async sendReservationConfirmation(confirmationMessage) {
+    var transport = nodemailer.createTransport({
+      host: "sandbox.smtp.mailtrap.io",
+      port: 2525,
+      auth: {
+        user: "c117cad204c8a5",
+        pass: "daff97052b9ac3",
+      },
+    });
+
+    const response = await transport.sendMail({
+      from: '"Moka Assistant"',
+      to: customer_email,
+      subject: "Conferma Prenotazione",
+      text: `${confirmationMessage}`,
+    });
+
+    console.log("📧 Email di conferma inviata:", response);
   }
 
   _sendWelcomeMessage() {
