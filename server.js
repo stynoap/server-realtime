@@ -7,8 +7,6 @@ const WebSocket = require("ws");
 const TwilioHandler = require("./src/handlers/twilio");
 const { base_api } = require("./src/config/constants");
 const OpenAIHandler = require("./src/handlers/openai");
-const Srf = require("drachtio-srf");
-const srf = new Srf();
 
 const app = express();
 const server = http.createServer(app);
