@@ -112,6 +112,11 @@ app.post("/call", async (req, res) => {
   var caller_number = null;
   console.log("SIP HEADERS:", sipHeaders);
   console.log(parsedBody, "body parsato");
+  const twilioCallSidHeader = sipHeaders.find(
+    (h) => h.name === "X-Twilio-CallSid"
+  );
+  const twilioCallSid = twilioCallSidHeader?.value;
+  console.log("Twilio Call SID:", twilioCallSid);
 
   // Estrai il numero di telefono chiamato dagli header SIP
   if (sipHeaders && Array.isArray(sipHeaders)) {
@@ -324,6 +329,7 @@ VIETATO:
         caller_number,
         receiving_telephone_number,
         callId,
+        twilioCallSid,
         enhancedInstructions
       );
 

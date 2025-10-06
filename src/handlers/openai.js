@@ -23,6 +23,7 @@ class OpenAIHandler {
     this.currentAssistantResponse = "";
     this.currentUserMessage = "";
     this.callId = "";
+    this.twilioCallSid = "";
     this.hasReservation = false;
   }
   /** Connette a OpenAI Realtime WebSocket */
@@ -72,8 +73,10 @@ class OpenAIHandler {
     caller_number,
     receiving_telephone_number,
     callId,
+    twilioCallSid,
     instructions = ""
   ) {
+    this.twilioCallSid = twilioCallSid;
     this.callId = callId;
     this.hotelId = hotelId; // ✅ Imposta l'hotelId prima della connessione
     this.hotelCallNumber = receiving_telephone_number;
@@ -153,6 +156,7 @@ class OpenAIHandler {
     this.openaiWs.on("close", async (code, reason) => {
       console.log(`🔴 OpenAI disconnesso - Code: ${code}, Reason: ${reason}`);
       await this.close();
+      await this.hangupTwilioCall();
       // Non chiamare this.close() automaticamente per evitare chiusure premature
       // Solo loggare per debug
     });
@@ -271,13 +275,14 @@ class OpenAIHandler {
     ];
   } /** Gestisce i messaggi da OpenAI */
 
-  handleEndCallFunctionCall(response) {
+  async handleEndCallFunctionCall(response) {
     console.log("dentro la funzione per la gestione della fine della chiamata");
     const args = JSON.parse(response.arguments);
     const reason =
       args.reason || "Chiusura della chiamata su richiesta del cliente";
     console.log("Motivo della chiusura:", reason);
-    this.close();
+    await this.close();
+    await this.hang;
   }
 
   //funzione per la gestione di quando il cliente chiede di prenotare una camera
@@ -889,6 +894,52 @@ ${notes ? "- Note: " + notes : ""}`;
         });
 
       this.openaiWs.close();
+    }
+  }
+  async hangupTwilioCall() {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+    const callSid = this.twilioCallSid;
+    if (!callSid) {
+      console.error(
+        "❌ callSid non impostato, impossibile chiudere la chiamata"
+      );
+      return false;
+    }
+
+    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
+
+    const params = new URLSearchParams();
+    params.append("Status", "completed"); // imposta la chiamata come terminata
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization:
+            "Basic " +
+            Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params,
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(
+          "❌ Errore chiusura chiamata Twilio:",
+          response.status,
+          text
+        );
+        return false;
+      }
+
+      console.log("✅ Chiamata Twilio terminata con successo");
+      return true;
+    } catch (err) {
+      console.error("❌ Errore nella richiesta Twilio:", err);
+      return false;
     }
   }
 
