@@ -243,14 +243,11 @@ PRENOTAZIONI:
 - Dopo aver raccolto tutto, invoca "make_reservation".  
 
 
-
-
 RISPONDI DIRETTAMENTE SOLO A:
 - Saluti, ringraziamenti, richieste di ripetere, conversazione generica.  
 
 VIETATO:
 - Inventare informazioni non presenti.  
-- Dare conferme di prenotazione senza usare "make_reservation".
 `;
   console.log("Webhook ricevuto - ACCEPT IMMEDIATO");
 

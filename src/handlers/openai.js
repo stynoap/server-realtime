@@ -1,15 +1,13 @@
 const WebSocket = require("ws");
 const {
   OPENAI_WS_URL,
-  VAD_CONFIG,
-  AI_CONFIG,
   AWS_SERVER_URL,
   base_api,
 } = require("../config/constants");
 // 🚀 Usa il nuovo handler RAG veloce
 const FunctionCallHandlerRAG = require("./functionCallRAG");
-const { text } = require("express");
 const nodemailer = require("nodemailer");
+const HandleReservation = require("./handleReservation");
 
 class OpenAIHandler {
   constructor(twilioWs) {
@@ -157,7 +155,6 @@ class OpenAIHandler {
     this.openaiWs.on("close", async (code, reason) => {
       console.log(`🔴 OpenAI disconnesso - Code: ${code}, Reason: ${reason}`);
       await this.close();
-      await this.hangupTwilioCall();
       // Non chiamare this.close() automaticamente per evitare chiusure premature
       // Solo loggare per debug
     });
@@ -276,13 +273,10 @@ class OpenAIHandler {
     ];
   } /** Gestisce i messaggi da OpenAI */
 
-  async handleEndCallFunctionCall(response) {}
-
   //funzione per la gestione di quando il cliente chiede di prenotare una camera
   async _handleReservationFunctionCall(response) {
     console.log("dentro la funzione per la gestione della prenotazione");
     try {
-      // Parse e validazione argomenti
       let args;
       try {
         args = JSON.parse(response.arguments);
@@ -317,13 +311,21 @@ class OpenAIHandler {
         !customer_surname ||
         !customer_email
       ) {
-        return this.openaiWs.send(
+        this.openaiWs.send(
+          JSON.stringify({
+            type: "conversation.item.create",
+            item: {
+              type: "function_call_output",
+              call_id: this.callId,
+              output:
+                "Mancano alcuni dettagli essenziali per la prenotazione. Per favore, forniscimi il tipo di prenotazione, data, ora, nome, cognome ed email.",
+            },
+          })
+        );
+        this.openaiWs.send(
           JSON.stringify({
             type: "response.create",
-            response: {
-              instructions:
-                "Mancano alcuni dati obbligatori per la prenotazione. Controlla e riprova.",
-            },
+            response: {},
           })
         );
       }
@@ -362,16 +364,12 @@ ${
             body: JSON.stringify(prenotazione),
           }
         );
-
-        if (!prenotazioneInsertStatus.ok) {
-          confirmationMessage =
-            "C'è stato un problema nel salvataggio della prenotazione. Riprova più tardi.";
-        } else {
+        if (prenotazioneInsertStatus.ok) {
           const response = await this.sendReservationConfirmation(
             confirmationMessage,
             customer_email
           );
-          console.log("Risposta invio email:", response);
+
           this.hasReservation = true;
           // Risposta all'assistente
           this.openaiWs.send(
@@ -379,8 +377,9 @@ ${
               type: "conversation.item.create",
               item: {
                 type: "function_call_output",
-                call_id: callId,
-                output: confirmationMessage,
+                call_id: this.callId,
+                output:
+                  "La prenotazione è stata salvata con successo nel sistema.",
               },
             })
           );
@@ -623,7 +622,7 @@ ${
     }
   }
 
-  _handleMessageSIPTRUNK(message, instructions = "") {
+  async _handleMessageSIPTRUNK(message, instructions = "") {
     try {
       /* Questa è la risposta che mi arriva da open ai che PUO' avere l'impostazione per effettuare la ricerca nella knowledge base */
       const response = JSON.parse(message.toString());
@@ -695,7 +694,14 @@ ${
         );
         if (response.name === "make_reservation") {
           console.log("evento di tipo make reservation");
-          this._handleReservationFunctionCall(response);
+          const handleReservation = new HandleReservation(
+            this.openaiWs,
+            response,
+            this.hotelId,
+            this.callId
+          );
+          await handleReservation._handleReservationFunctionCall();
+          this.hasReservation = true;
           return;
         }
         console.log("🔧 Function call RAG rilevata:", response);
