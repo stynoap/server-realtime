@@ -252,8 +252,33 @@ class OpenAIHandler {
           ],
         },
       },
+      {
+        type: "function",
+        name: "end_call",
+        description:
+          "Termina la chiamata e fornisce un messaggio di chiusura al cliente.",
+        parameters: {
+          type: "object",
+          properties: {
+            reason: {
+              type: "string",
+              description: "Motivo della chiusura della chiamata",
+            },
+          },
+          required: ["reason"],
+        },
+      },
     ];
   } /** Gestisce i messaggi da OpenAI */
+
+  handleEndCallFunctionCall(response) {
+    console.log("dentro la funzione per la gestione della fine della chiamata");
+    const args = JSON.parse(response.arguments);
+    const reason =
+      args.reason || "Chiusura della chiamata su richiesta del cliente";
+    console.log("Motivo della chiusura:", reason);
+    this.close();
+  }
 
   //funzione per la gestione di quando il cliente chiede di prenotare una camera
   async _handleReservationFunctionCall(response) {
@@ -608,7 +633,7 @@ ${notes ? "- Note: " + notes : ""}`;
           JSON.stringify({
             type: "response.create",
             response: {
-              instructions: `Se ancora al cliente non ti sei presentato, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato, dicendo che sei l'assistente virtuale della struttura e che può parlarti normalmente come farebbe con una persona e chiedi poi come puoi aiutarlo. Il contesto che devi usare per basare questa tua presentazione è il seguente: ${instructions}`,
+              instructions: `Se ancora al cliente non ti sei presentato, allora fallo dicendo chi sei e il nome della struttura per cui lavori. Per farlo, adattati al fatto che questa è l'ora del giorno: ${hour}. Saluta il cliente in modo appropriato, dicendo che sei l'assistente virtuale della struttura e che può parlarti normalmente come farebbe con una persona, e perciò può interromperti e chiedi poi come puoi aiutarlo. Il contesto che devi usare per basare questa tua presentazione è il seguente: ${instructions}`,
             },
           })
         );
@@ -672,6 +697,10 @@ ${notes ? "- Note: " + notes : ""}`;
         if (response.name == "make_reservation") {
           console.log("evento di tipo make reservation");
           this._handleReservationFunctionCall(response);
+          return;
+        }
+        if (response.name == "end_call") {
+          this.handleEndCallFunctionCall(response);
           return;
         }
         console.log("🔧 Function call RAG rilevata:", response);
