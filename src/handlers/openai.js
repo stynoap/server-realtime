@@ -9,6 +9,7 @@ const {
 // 🚀 Usa il nuovo handler RAG veloce
 const FunctionCallHandlerRAG = require("./functionCallRAG");
 const { text } = require("express");
+const nodemailer = require("nodemailer");
 
 class OpenAIHandler {
   constructor(twilioWs) {
@@ -366,9 +367,28 @@ ${
           confirmationMessage =
             "C'è stato un problema nel salvataggio della prenotazione. Riprova più tardi.";
         } else {
-          await this.sendReservationConfirmation(
+          const response = await this.sendReservationConfirmation(
             confirmationMessage,
             customer_email
+          );
+          console.log("Risposta invio email:", response);
+          this.hasReservation = true;
+          // Risposta all'assistente
+          this.openaiWs.send(
+            JSON.stringify({
+              type: "conversation.item.create",
+              item: {
+                type: "function_call_output",
+                call_id: callId,
+                output: confirmationMessage,
+              },
+            })
+          );
+          this.openaiWs.send(
+            JSON.stringify({
+              type: "response.create",
+              response: {},
+            })
           );
         }
       } catch (err) {
@@ -376,25 +396,6 @@ ${
         confirmationMessage =
           "Errore di connessione al servizio prenotazioni. Riprova più tardi.";
       }
-
-      this.hasReservation = true;
-      // Risposta all'assistente
-      openaiWs.send(
-        JSON.stringify({
-          type: "conversation.item.create",
-          item: {
-            type: "function_call_output",
-            call_id: callId,
-            output: confirmationMessage,
-          },
-        })
-      );
-      openaiWs.send(
-        JSON.stringify({
-          type: "response.create",
-          response: {},
-        })
-      );
     } catch (err) {
       console.error("Errore in _handleReservationFunctionCall:", err);
       this.openaiWs.send(
@@ -642,12 +643,6 @@ ${
           })
         );
 
-        openaiWs.send(
-          JSON.stringify({
-            type: "response.create",
-            response: {},
-          })
-        );
         // Chiama il callback se disponibile (per il messaggio di benvenuto)
         /* Non supporta che gli metti modalities audio */
         return;
@@ -698,7 +693,7 @@ ${
           "dentro l'evento che gestisce il lancio degli eventi",
           response.name
         );
-        if (response.name == "make_reservation") {
+        if (response.name === "make_reservation") {
           console.log("evento di tipo make reservation");
           this._handleReservationFunctionCall(response);
           return;
@@ -978,6 +973,7 @@ ${
     });
 
     console.log("📧 Email di conferma inviata:", response);
+    return response;
   }
 
   _sendWelcomeMessage() {

@@ -241,8 +241,7 @@ PRENOTAZIONI:
 - Chiedi i dati con calma, poco alla volta, e confermali al cliente.  
 - Per l’email, pronuncia "chiocciola" invece di "at", se la conversazione è in italiano.  
 - Dopo aver raccolto tutto, invoca "make_reservation".  
-- Solo dopo la funzione conferma al cliente:  
-  "La sua prenotazione è in corso. Riceverà una conferma a breve. Posso aiutarla in altro?"
+
 
 
 
