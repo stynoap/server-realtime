@@ -897,10 +897,12 @@ ${notes ? "- Note: " + notes : ""}`;
     }
   }
   async hangupTwilioCall() {
+    console.log("🔴 Chiusura chiamata Twilio...");
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
 
     const callSid = this.twilioCallSid;
+    console.log("Chiusura chiamata Twilio, Call SID:", callSid);
     if (!callSid) {
       console.error(
         "❌ callSid non impostato, impossibile chiudere la chiamata"
