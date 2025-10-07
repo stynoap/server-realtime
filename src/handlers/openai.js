@@ -270,6 +270,22 @@ class OpenAIHandler {
           required: ["reason"],
         },
       },
+      {
+        type: "function",
+        name: "transfer_to_human",
+        description:
+          "Trasferisci la chiamata a un operatore umano quando l'utente lo richiede esplicitamente.",
+        parameters: {
+          type: "object",
+          properties: {
+            reason: {
+              type: "string",
+              description: "Motivo della chiusura della chiamata",
+            },
+          },
+          required: ["reason"],
+        },
+      },
     ];
   } /** Gestisce i messaggi da OpenAI */
 
@@ -377,7 +393,7 @@ ${
               type: "conversation.item.create",
               item: {
                 type: "function_call_output",
-                call_id: this.callId,
+                call_id: this.response.call_id,
                 output:
                   "La prenotazione è stata salvata con successo nel sistema.",
               },
@@ -710,6 +726,12 @@ ${
           await this.hangupOpenAICall();
           return;
         }
+
+        if (response.name === "transfer_to_human") {
+          console.log("evento di tipo transfer to human, chiudo la chiamata");
+          await this.transferCall(response);
+          return;
+        }
         console.log("🔧 Function call RAG rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
           response,
@@ -744,6 +766,85 @@ ${
         },
       })
     );
+  }
+
+  async transferCall(response) {
+    console.log("📞 Trasferimento chiamata richiesto dal cliente ed in corso");
+    this.openaiWs.send(
+      JSON.stringify({
+        type: "conversation.item.create",
+        item: {
+          type: "function_call_output",
+          call_id: response.call_id,
+          output: JSON.stringify({
+            success: true,
+            message: "Trasferimento in corso...",
+          }),
+        },
+      })
+    );
+
+    this.openaiWs.send(
+      JSON.stringify({
+        type: "response.create",
+        response: {
+          instructions:
+            "Dì al cliente: 'La sto trasferendo a un operatore. Un momento per favore.'",
+        },
+      })
+    );
+
+    // ✅ Aspetta che l'AI dica il messaggio (2-3 secondi)
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const callId = this.callId;
+
+    if (!callId) {
+      console.error(
+        "❌ callId non impostato, impossibile trasferire la chiamata"
+      );
+      return false;
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error("❌ OPENAI_API_KEY non impostata");
+      return false;
+    }
+    const targetPhoneNumber = "+393792194511"; //numero di un operatore umano
+    const targetUri = targetPhoneNumber.startsWith("tel:")
+      ? targetPhoneNumber
+      : `tel:${targetPhoneNumber}`;
+
+    const url = `https://api.openai.com/v1/realtime/calls/${callId}/refer`;
+
+    console.log(`📞 Trasferimento chiamata a: ${targetUri}`);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          target_uri: targetUri,
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(
+          `❌ Errore trasferimento chiamata: ${response.status} - ${text}`
+        );
+        return false;
+      }
+
+      console.log("✅ Chiamata trasferita con successo a:", targetUri);
+      return true;
+    } catch (err) {
+      console.error("❌ Errore nella richiesta di trasferimento:", err);
+      return false;
+    }
   }
 
   /** Invia audio dell'utente a OpenAI, viene usata da twilio per inviare l'audio dell'utente a openai */
@@ -915,6 +1016,10 @@ ${
 
     const url = `https://api.openai.com/v1/realtime/calls/${callId}/hangup`;
 
+    //mettiamo un delay per non chiudere troppo velocemnte
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+
+    console.log(`📞 Chiusura chiamata OpenAI Call ID: ${callId}`);
     try {
       const response = await fetch(url, {
         method: "POST",
