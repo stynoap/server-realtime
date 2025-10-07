@@ -70,7 +70,6 @@ app.get("/health", (req, res) => {
   res.json({
     status: "WebSocket server running",
     timestamp: new Date(),
-    connections: wss.clients.size,
   });
 });
 
