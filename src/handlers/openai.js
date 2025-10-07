@@ -716,8 +716,11 @@ ${
             this.hotelId,
             this.callId
           );
-          await handleReservation._handleReservationFunctionCall();
-          this.hasReservation = true;
+          const reservationStatus =
+            await handleReservation._handleReservationFunctionCall();
+          if (reservationStatus === "reservation_sended") {
+            this.hasReservation = true;
+          }
           return;
         }
 

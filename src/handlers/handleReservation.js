@@ -15,9 +15,10 @@ class HandleReservation {
     // ✅ 1. Parse e validazione argomenti
     const args = this._parseReservationArgs(this.response.arguments);
     if (!args) {
-      return this._sendErrorResponse(
+      this._sendErrorResponse(
         "Non sono riuscito a leggere i dettagli della prenotazione. Puoi ripetere?"
       );
+      return "reservation_error";
     }
 
     const {
@@ -31,9 +32,10 @@ class HandleReservation {
     } = args;
 
     if (!this._validateReservationData(args)) {
-      return this._sendErrorResponse(
+      this._sendErrorResponse(
         "Mancano alcuni dettagli essenziali (tipo, data, ora, nome, cognome, email)."
       );
+      return "reservation_error";
     }
 
     const prenotazione = {
@@ -58,7 +60,10 @@ class HandleReservation {
       });
 
       if (!reservationInsert.ok) {
-        throw new Error(`HTTP error! status: ${reservationInsert.status}`);
+        this._sendErrorResponse(
+          "Non sono riuscito a salvare la prenotazione. Vuoi riprovare?"
+        );
+        return "reservation_error";
       }
 
       const confirmationMessage = this._buildConfirmationMessage(prenotazione);
@@ -69,10 +74,12 @@ class HandleReservation {
       );
 
       // ✅ Tutto ok, invia risposta di successo a OpenAI
-      return this._sendSuccessResponse(
+      this._sendSuccessResponse(
         prenotazione,
         "La prenotazione è andata a buon fine ed è stata salvata con successo nei nostri sistemi!"
       );
+
+      return "reservation_sended";
     } catch (error) {
       console.error("❌ Errore salvataggio prenotazione:", error);
       return this._sendErrorResponse(
