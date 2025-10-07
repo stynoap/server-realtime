@@ -161,7 +161,7 @@ Se noti errori, contattaci. Grazie per aver scelto Moka!`;
       JSON.stringify({
         type: "response.create",
         response: {
-          instructions: `Comunica al cliente, riadattando tu il tono sulla base della conversazione: "${successMessage} La prenotazione per ${prenotazione.reservation_type} è confermata per il ${prenotazione.date} alle ${prenotazione.time}. "`,
+          instructions: `Comunica al cliente, riadattando tu il tono sulla base della conversazione: "${successMessage} La prenotazione per ${prenotazione.reservation_type} è confermata per il ${prenotazione.date} alle ${prenotazione.time}. A questo punto chiedi se ha bisogno di altro. "`,
         },
       })
     );

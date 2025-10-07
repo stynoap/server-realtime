@@ -254,7 +254,7 @@ class OpenAIHandler {
           ],
         },
       },
-      /* {
+      {
         type: "function",
         name: "end_call",
         description:
@@ -269,7 +269,7 @@ class OpenAIHandler {
           },
           required: ["reason"],
         },
-      }, */
+      },
     ];
   } /** Gestisce i messaggi da OpenAI */
 
@@ -704,6 +704,12 @@ ${
           this.hasReservation = true;
           return;
         }
+
+        if (response.name === "end_call") {
+          console.log("evento di tipo end call, chiudo la chiamata");
+          await this.hangupOpenAICall();
+          return;
+        }
         console.log("🔧 Function call RAG rilevata:", response);
         this.functionCallHandler.handleFunctionCall(
           response,
@@ -892,54 +898,45 @@ ${
       this.openaiWs.close();
     }
   }
-  async hangupTwilioCall() {
-    console.log("🔴 Chiusura chiamata Twilio...");
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    console.log("Account SID:", accountSid);
-    console.log("Auth Token presente:", authToken);
-
-    const callSid = this.twilioCallSid;
-    console.log("Chiusura chiamata Twilio, Call SID:", callSid);
-    if (!callSid) {
+  async hangupOpenAICall() {
+    const callId = this.callId;
+    if (!callId) {
       console.error(
-        "❌ callSid non impostato, impossibile chiudere la chiamata"
+        "❌ callId non impostato, impossibile chiudere la chiamata"
       );
       return false;
     }
 
-    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
-    console.log(url);
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error("❌ OPENAI_API_KEY non impostata");
+      return false;
+    }
 
-    const params = new URLSearchParams();
-    params.append("Status", "completed"); // imposta la chiamata come terminata
+    const url = `https://api.openai.com/v1/realtime/calls/${callId}/hangup`;
 
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization:
-            "Basic " +
-            Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
-          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-        body: params,
+        body: JSON.stringify({ reason: "end_of_conversation" }),
       });
 
       if (!response.ok) {
         const text = await response.text();
         console.error(
-          "❌ Errore chiusura chiamata Twilio:",
-          response.status,
-          text
+          `❌ Errore chiusura chiamata OpenAI: ${response.status} - ${text}`
         );
         return false;
       }
 
-      console.log("✅ Chiamata Twilio terminata con successo");
+      console.log("✅ Chiamata OpenAI terminata con successo");
       return true;
     } catch (err) {
-      console.error("❌ Errore nella richiesta Twilio:", err);
+      console.error("❌ Errore nella richiesta a OpenAI:", err);
       return false;
     }
   }
