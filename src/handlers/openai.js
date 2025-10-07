@@ -810,7 +810,7 @@ ${
       console.error("❌ OPENAI_API_KEY non impostata");
       return false;
     }
-    const targetPhoneNumber = "+393792194511"; //numero di un operatore umano
+    const targetPhoneNumber = "+393335770646"; //numero di un operatore umano
     const targetUri = targetPhoneNumber.startsWith("tel:")
       ? targetPhoneNumber
       : `tel:${targetPhoneNumber}`;
